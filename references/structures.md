@@ -132,3 +132,35 @@ Wh- openers become a crutch. "What makes this hard is..." becomes "The constrain
 |---------|---------|
 | Lazy extremes (every, always, never, everyone, everybody, nobody) | False authority. Use specifics instead of sweeping claims. |
 | All adverbs (-ly words, "really," "just," "literally," "genuinely," "honestly," "simply," "actually") | Empty emphasis. See phrases.md for full list. |
+
+## Hedge Stacking
+
+Two or more hedges within a short window (1–2 sentences). AI text hedges compulsively because it's trained to avoid definitive claims. Humans commit.
+
+| Pattern | Problem |
+|---------|---------|
+| "may potentially" | Double hedge |
+| "often tends to" | Double hedge |
+| "could possibly" | Double hedge |
+| "might sometimes" | Double hedge |
+| "typically might" | Double hedge |
+| "It is possible that... may..." | Hedge sandwich |
+| "While it may... it could also..." | Both sides hedged |
+| "arguably... perhaps... in some cases" | Triple hedge in one thought |
+
+**Hedge words to watch:** may, might, could, possibly, potentially, perhaps, arguably, typically, often, generally, tends to, in some cases, it is possible that, it is likely that, to some extent, more or less.
+
+**Rule:** One hedge per claim maximum. If you hedge, commit to the hedge: "X is possible" is fine. "X could potentially be possible in some cases" is AI. Pick the strongest version of what you mean and say it.
+
+## Symmetric List Bloat
+
+AI loves balanced, parallel structures — especially three items where each gets equal treatment regardless of importance.
+
+| Pattern | Problem |
+|---------|---------|
+| "First, ... Second, ... Third, ..." with identical paragraph lengths | Mechanical enumeration |
+| "On one hand... On the other hand... Additionally..." | Symmetric padding |
+| Headers like "Benefits", "Challenges", "Future Directions" each with 3 equal sub-bullets | Template-driven structure |
+| Every list has exactly 3 items | Artificial completeness |
+
+**Instead:** Vary list lengths. Give more space to things that deserve it. Two items are fine. One item is fine. Not everything needs a counterpoint.
