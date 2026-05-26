@@ -12,18 +12,45 @@ AI writing has patterns. Predictable phrases, structures, rhythms. This skill te
 
 ```
 stop-slop/
-├── SKILL.md              # Core instructions
+├── .claude-plugin/
+│   ├── plugin.json        # Plugin manifest
+│   └── marketplace.json   # Marketplace manifest
+├── skills/
+│   └── stop-slop/
+│       └── SKILL.md       # Skill for plugin discovery
+├── SKILL.md               # Core instructions (standalone use)
 ├── references/
-│   ├── phrases.md        # Phrases to remove
-│   ├── structures.md     # Structural patterns to avoid
-│   └── examples.md       # Before/after transformations
+│   ├── phrases.md         # Phrases to remove
+│   ├── structures.md      # Structural patterns to avoid
+│   └── examples.md        # Before/after transformations
 ├── README.md
 └── LICENSE
 ```
 
-## Quick start
+## Install
 
-**Claude Code:** Add this folder as a skill.
+### GitHub Copilot CLI
+
+```bash
+copilot plugin marketplace add abossard/stop-slop
+copilot plugin install stop-slop@stop-slop
+```
+
+Verify:
+
+```bash
+copilot plugin list
+```
+
+### Claude Code
+
+Add this folder as a skill, or install as a plugin:
+
+```bash
+claude plugin add abossard/stop-slop
+```
+
+### Other platforms
 
 **Claude Projects:** Upload `SKILL.md` and reference files to project knowledge.
 

@@ -1,0 +1,19 @@
+{
+  "name": "stop-slop",
+  "description": "Remove AI writing patterns from prose. Catches banned phrases, structural clichés, rhythm issues, and AI tells.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Hardik Pandya",
+    "url": "https://hvpandya.com"
+  },
+  "homepage": "https://github.com/abossard/stop-slop",
+  "repository": "https://github.com/abossard/stop-slop",
+  "license": "MIT",
+  "keywords": [
+    "writing",
+    "prose",
+    "ai-tells",
+    "editing",
+    "skill"
+  ]
+}
