@@ -2,6 +2,17 @@
 
 A skill for removing AI tells from prose.
 
+> **Fork note — what this fork adds**
+>
+> The [original stop-slop](https://github.com/hvpandya/stop-slop) by [Hardik Pandya](https://hvpandya.com) is a pure-markdown skill that teaches LLMs to self-edit. This fork extends it with:
+>
+> - **Plugin support** — installable as a GitHub Copilot CLI or Claude Code plugin (`copilot plugin install`, `claude plugin add`)
+> - **Empirically-backed vocabulary lists** — AI-overused words from [Kobak et al. (2025)](https://arxiv.org/abs/2406.07016) with frequency ratios (e.g. *delve* appears 28× more in AI text)
+> - **Hedge stacking & symmetric list bloat** — two new structural patterns added to the detection rules
+> - **Python analysis tool** (`tools/analyze.py`) — quantitative AI slop detection via burstiness scoring, lexical diversity (TTR, MTLD), AI vocabulary density, passive voice rate, and Flesch-Kincaid readability. Outputs per-sentence findings with actionable feedback. Works as a prose linter, not a classifier.
+>
+> The skill files and references remain backward-compatible with the original.
+
 <img width="3840" height="2160" alt="G-Yg4RVbIAAhVxW" src="https://github.com/user-attachments/assets/902afc15-1f40-4a9d-af24-8cd67afb8ebf" />
 
 ## What this is

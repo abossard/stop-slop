@@ -78,6 +78,8 @@ AI_PHRASES = [
     "offers a promising avenue", "it is imperative to",
     "a comprehensive understanding", "in light of the above",
     "warrants further investigation", "a growing body of",
+    "in conclusion", "this underscores", "this study aims to",
+    "the findings suggest", "this highlights the",
 ]
 
 ALL_AI_WORDS = AI_VERBS | AI_ADJECTIVES | AI_NOUNS | AI_TRANSITIONS
@@ -112,43 +114,89 @@ def _compute_ttr(words: list[str]) -> float:
     return round(len(set(words)) / len(words), 4)
 
 
-def _compute_ai_vocab_density(words: list[str]) -> float:
-    """Count AI vocabulary words per 1000 words."""
+def _lemmatize_fallback(word: str) -> str:
+    """Lemmatize via simple suffix stripping (no spaCy)."""
+    if word.endswith("ing") and len(word) > 5:
+        base = word[:-3]
+        if base + "e" in ALL_AI_WORDS:
+            return base + "e"
+        if base in ALL_AI_WORDS:
+            return base
+    if word.endswith("es") and len(word) > 4:
+        if word[:-2] in ALL_AI_WORDS:
+            return word[:-2]
+        if word[:-1] in ALL_AI_WORDS:
+            return word[:-1]
+    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        if word[:-1] in ALL_AI_WORDS:
+            return word[:-1]
+    if word.endswith("ed") and len(word) > 4:
+        if word[:-2] in ALL_AI_WORDS:
+            return word[:-2]
+        if word[:-1] in ALL_AI_WORDS:
+            return word[:-1]
+        if word[:-2] + "e" in ALL_AI_WORDS:
+            return word[:-2] + "e"
+    return word
+
+
+def _spacy_analyze(text: str) -> dict:
+    """Single spaCy pass over the full text. Returns lemma map and passive sentence texts."""
+    if not HAS_SPACY:
+        return {"lemmas": {}, "passive_sentence_texts": set()}
+
+    doc = _nlp(text)
+    # Build token -> lemma mapping
+    lemmas = {}
+    for tok in doc:
+        lower = tok.text.lower()
+        if lower not in lemmas:
+            lemmas[lower] = tok.lemma_.lower()
+
+    # Collect text of passive sentences (normalized for matching)
+    passive_sentence_texts = set()
+    for sent in doc.sents:
+        if any(tok.dep_ in ("nsubjpass", "auxpass") for tok in sent):
+            passive_sentence_texts.add(sent.text.strip())
+
+    return {"lemmas": lemmas, "passive_sentence_texts": passive_sentence_texts}
+
+
+def _resolve_lemma(word: str, spacy_lemmas: dict) -> str:
+    """Get lemma from spaCy cache, falling back to suffix stripping."""
+    if word in spacy_lemmas:
+        return spacy_lemmas[word]
+    return _lemmatize_fallback(word)
+
+
+def _compute_ai_vocab_density(words: list[str], spacy_lemmas: dict) -> float:
+    """Count AI vocabulary words per 1000 words. Lemmatizes to catch inflections."""
     if not words:
         return 0.0
-    # Check individual words
-    hits = sum(1 for w in words if w in ALL_AI_WORDS)
-    # Check multi-word phrases in joined text
+    hits = sum(1 for w in words if _resolve_lemma(w, spacy_lemmas) in ALL_AI_WORDS)
     joined = " ".join(words)
     for phrase in AI_PHRASES:
         hits += len(re.findall(re.escape(phrase), joined))
     return round(hits / len(words) * 1000, 2)
 
 
-def _compute_passive_voice_rate(sentences: list[str]) -> float:
-    """Fraction of sentences with passive voice (via spaCy or regex fallback)."""
+def _compute_passive_voice_rate(
+    sentences: list[str], passive_texts: set[str] | None = None
+) -> float:
+    """Fraction of sentences with passive voice."""
     if not sentences:
         return 0.0
 
-    passive_count = 0
+    if passive_texts is not None:
+        # Match our regex-split sentences against spaCy's passive detections
+        count = sum(1 for s in sentences if s.strip() in passive_texts)
+        return round(count / len(sentences), 4)
 
-    if HAS_SPACY:
-        for sent in sentences:
-            doc = _nlp(sent)
-            has_passive = any(
-                tok.dep_ in ("nsubjpass", "auxpass") for tok in doc
-            )
-            if has_passive:
-                passive_count += 1
-    else:
-        # Regex fallback: "was/were/been/being + past participle pattern"
-        passive_re = re.compile(
-            r'\b(?:was|were|been|being|is|are|am)\s+\w+(?:ed|en|t)\b', re.IGNORECASE
-        )
-        for sent in sentences:
-            if passive_re.search(sent):
-                passive_count += 1
-
+    # Regex fallback
+    passive_re = re.compile(
+        r'\b(?:was|were|been|being|is|are|am)\s+\w+(?:ed|en|t)\b', re.IGNORECASE
+    )
+    passive_count = sum(1 for s in sentences if passive_re.search(s))
     return round(passive_count / len(sentences), 4)
 
 
@@ -159,17 +207,19 @@ def _compute_readability(text: str) -> float:
     return 0.0
 
 
-def _generate_findings(sentences: list[str], words: list[str]) -> list[dict]:
-    """Per-sentence findings with line numbers and issues."""
+def _generate_findings(
+    sentences: list[str], words: list[str],
+    spacy_lemmas: dict, passive_texts: set[str] | None = None,
+) -> list[dict]:
+    """Per-sentence findings with sentence indices and issues."""
     findings = []
-    line = 1  # 1-indexed
 
-    for sent in sentences:
+    for idx, sent in enumerate(sentences):
         issues = []
         sent_words = _word_tokenize(sent)
 
-        # Check AI vocabulary
-        ai_words_found = [w for w in sent_words if w in ALL_AI_WORDS]
+        # Check AI vocabulary (lemmatized to catch inflections)
+        ai_words_found = [w for w in sent_words if _resolve_lemma(w, spacy_lemmas) in ALL_AI_WORDS]
         if ai_words_found:
             issues.append(
                 f"AI-overused words: {', '.join(ai_words_found)} "
@@ -182,10 +232,9 @@ def _generate_findings(sentences: list[str], words: list[str]) -> list[dict]:
             if phrase in sent_lower:
                 issues.append(f"AI-typical phrase: \"{phrase}\"")
 
-        # Check passive voice (per-sentence)
-        if HAS_SPACY:
-            doc = _nlp(sent)
-            if any(tok.dep_ in ("nsubjpass", "auxpass") for tok in doc):
+        # Check passive voice
+        if passive_texts is not None:
+            if sent.strip() in passive_texts:
                 issues.append("Passive voice — name the actor")
         else:
             passive_re = re.compile(
@@ -209,12 +258,10 @@ def _generate_findings(sentences: list[str], words: list[str]) -> list[dict]:
 
         if issues:
             findings.append({
-                "line": line,
+                "line": idx + 1,
                 "sentence": sent[:120] + ("..." if len(sent) > 120 else ""),
                 "issues": issues,
             })
-
-        line += 1
 
     return findings
 
@@ -238,20 +285,37 @@ def analyze_text(text: str) -> dict:
     words = _word_tokenize(text)
     sentence_lengths = [len(_word_tokenize(s)) for s in sentences]
 
-    return {
+    # Single spaCy pass for lemmas + passive voice
+    spacy_data = _spacy_analyze(text)
+    spacy_lemmas = spacy_data["lemmas"]
+    passive_texts = spacy_data["passive_sentence_texts"] if HAS_SPACY else None
+
+    result = {
         "word_count": len(words),
         "sentence_count": len(sentences),
         "burstiness": _compute_burstiness(sentence_lengths),
         "ttr": _compute_ttr(words),
-        "ai_vocabulary_density": _compute_ai_vocab_density(words),
-        "passive_voice_rate": _compute_passive_voice_rate(sentences),
+        "ai_vocabulary_density": _compute_ai_vocab_density(words, spacy_lemmas),
+        "passive_voice_rate": _compute_passive_voice_rate(sentences, passive_texts),
         "flesch_kincaid_grade": _compute_readability(text),
         "sentence_length_mean": round(statistics.mean(sentence_lengths), 2) if sentence_lengths else 0,
         "sentence_length_stdev": round(statistics.stdev(sentence_lengths), 2) if len(sentence_lengths) >= 2 else 0,
         "sentence_length_min": min(sentence_lengths) if sentence_lengths else 0,
         "sentence_length_max": max(sentence_lengths) if sentence_lengths else 0,
-        "findings": _generate_findings(sentences, words),
+        "findings": _generate_findings(sentences, words, spacy_lemmas, passive_texts),
     }
+
+    # MTLD via lexicalrichness (requires enough words for stable measurement)
+    if HAS_LEXRICH and len(words) >= 50:
+        try:
+            lr = LexicalRichness(text)
+            result["mtld"] = round(lr.mtld(threshold=0.72), 2)
+        except Exception:
+            result["mtld"] = None
+    else:
+        result["mtld"] = None
+
+    return result
 
 
 def _format_human(result: dict) -> str:
@@ -281,6 +345,12 @@ def _format_human(result: dict) -> str:
 
     fk = result["flesch_kincaid_grade"]
     lines.append(f"Flesch-Kincaid:      {fk:.1f}")
+
+    mtld = result.get("mtld")
+    if mtld is not None:
+        mtld_flag = " ⚠ AI-like (low lexical diversity)" if mtld < 50 else ""
+        lines.append(f"MTLD:                {mtld:.1f}{mtld_flag}")
+
     lines.append("")
 
     # Sentence stats
@@ -328,7 +398,8 @@ def main():
 
     if args.file:
         try:
-            text = open(args.file).read()
+            with open(args.file) as fh:
+                text = fh.read()
         except FileNotFoundError:
             print(f"Error: file not found: {args.file}", file=sys.stderr)
             sys.exit(1)

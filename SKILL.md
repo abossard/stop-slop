@@ -45,6 +45,32 @@ Before delivering prose:
 - Narrator-from-a-distance ("Nobody designed this")? Put the reader in the scene.
 - Meta-joiners ("The rest of this essay...")? Delete. Let the essay move.
 
+## 🏆 Wall of Shame
+
+When reviewing or diagnosing prose, surface the most ridiculous AI slop you found. Pick up to 3 worst offenders — real sentences from the text. Skip this section if the text has no clear offenders. Do not invent examples.
+
+For each offender, tag it with one emoji and a one-line roast. Roast the sentence, not the writer.
+
+| Emoji | Offense |
+|-------|---------|
+| 🤖 | Robotic phrasing — sounds like a chatbot wrote it |
+| 💀 | Dead cliché — "It's important to note," "In today's world" |
+| 🎭 | Fake drama — manufactured urgency or gravity |
+| 🪞 | Self-referential — the text talks about itself |
+| 🫠 | Cringe filler — adds nothing, sounds desperate to fill space |
+| 🦜 | Parrot — repeats the same idea in slightly different words |
+
+**Format:**
+
+> 🤖 "This comprehensive guide provides a detailed overview of the key considerations."
+> → It's a list, not a comprehensive guide. Say what it covers.
+>
+> 💀 "It's important to note that security plays a crucial role."
+> → Everything in a security doc is important to note. Cut the throat-clearing.
+>
+> 🎭 "In an era of unprecedented digital transformation, organizations must navigate..."
+> → Nobody talks like this. Say what changed and what to do about it.
+
 ## Scoring
 
 Rate 1-10 on each dimension:

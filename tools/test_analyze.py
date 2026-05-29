@@ -189,6 +189,43 @@ class TestEdgeCases:
         assert result["burstiness"] == 0  # can't compute variance with 1 sentence
 
 
+class TestInflection:
+    """Inflected forms of AI words must be detected (F1 fix)."""
+
+    def test_verb_inflections_detected(self, analyze_module):
+        text = (
+            "The researcher delves into the topic. "
+            "The team showcases their results. "
+            "They fostered a culture of innovation. "
+            "She is leveraging new technology. "
+            "He bolstered the argument effectively."
+        )
+        result = analyze_module.analyze_text(text)
+        assert result["ai_vocabulary_density"] > 30, (
+            f"Inflected verbs not detected. Density: {result['ai_vocabulary_density']}"
+        )
+
+    def test_noun_plurals_detected(self, analyze_module):
+        text = "The paradigms and ecosystems create synergies across realms."
+        result = analyze_module.analyze_text(text)
+        assert result["ai_vocabulary_density"] > 50, (
+            f"Plural nouns not detected. Density: {result['ai_vocabulary_density']}"
+        )
+
+
+class TestMTLD:
+    """MTLD metric from lexicalrichness (F3 fix)."""
+
+    def test_mtld_present_for_long_text(self, analyze_module):
+        # AI_TEXT is ~100 words, should be enough for MTLD
+        result = analyze_module.analyze_text(AI_TEXT)
+        assert "mtld" in result
+
+    def test_mtld_none_for_short_text(self, analyze_module):
+        result = analyze_module.analyze_text(SINGLE_SENTENCE)
+        assert result["mtld"] is None
+
+
 # ---------------------------------------------------------------------------
 # CLI integration tests
 # ---------------------------------------------------------------------------
