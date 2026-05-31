@@ -87,6 +87,26 @@ Below 35/50: revise.
 
 See [references/examples.md](../../references/examples.md) for before/after transformations.
 
+## Research References
+
+Signals and thresholds in this skill are backed by peer-reviewed and practitioner research:
+
+| Source | Signal | Citation |
+|--------|--------|----------|
+| Kobak et al. (2025) | AI vocabulary excess words, frequency ratios | *Science Advances* Vol.11 No.27; arXiv:2406.07016 |
+| Opara (StyloAI, 2024) | TTR, hapax legomena ratio as top-4 features; contraction count | AIED 2024; arXiv:2405.10129 |
+| Mahapatra (2026) | Language entropy collapse, punctuation suppression, distinct-N | arXiv:2605.28826 |
+| Przystalski et al. (2025) | Stylometric features on short texts (10 sentences), grammatical standardization | *Expert Systems with Applications* 296; arXiv:2507.00838 |
+| Ochab et al. (StylOch, 2025) | POS n-gram frequencies, dependency parse features | arXiv:2507.12064 |
+| Aityan et al. (NEULIF, 2025) | Stylometric + readability features achieve 97% accuracy with 25MB CNN | arXiv:2511.21744 |
+| chepdor2-ai/humara-s-clean-canvas | Calibrated thresholds for burstiness, Yule's K, hapax ratio, Guiraud's R | github.com/chepdor2-ai/humara-s-clean-canvas |
+| Retengart/entropy-analysis | Yule's K, MTLD, burstiness B-index formulas | github.com/Retengart/entropy-analysis |
+
+Key findings:
+- **Top 4 discriminating features** (Opara 2024): UniqueWordCount, StopWordCount, TTR, HapaxLegomenonRate
+- **Kobak "common 10" words** whose aggregate frequency predicts LLM use: across, additionally, comprehensive, crucial, enhancing, exhibited, insights, notably, particularly, within
+- **LLM text has collapsed entropy** (Mahapatra 2026): 1,949–16,853% amplification of certain patterns, complex punctuation suppressed to 3.2–23.2% of baseline
+
 ## License
 
 MIT

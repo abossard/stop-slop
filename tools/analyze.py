@@ -49,26 +49,45 @@ except ImportError:
 
 # --- AI vocabulary list (Kobak et al. 2025, arXiv:2406.07016) ---
 
-AI_VERBS = {
+# --- AI vocabulary tiers ---
+# Tier 1 (high-signal): words with frequency ratio ≥5× in AI text.
+# These are strong standalone signals. Source: Kobak et al. 2025.
+AI_TIER1_VERBS = {
     "delve", "underscore", "showcase", "elucidate", "navigate",
     "foster", "leverage", "harness", "illuminate", "spearhead",
     "bolster", "streamline", "encompass", "revolutionize", "embark",
 }
 
-AI_ADJECTIVES = {
+AI_TIER1_ADJECTIVES = {
     "multifaceted", "pivotal", "nuanced", "holistic", "transformative",
-    "comprehensive", "groundbreaking", "cutting-edge", "invaluable",
-    "meticulous", "intricate", "commendable", "notable", "paramount",
+    "groundbreaking", "cutting-edge", "invaluable",
+    "meticulous", "intricate",
 }
 
-AI_NOUNS = {
+AI_TIER1_NOUNS = {
     "tapestry", "landscape", "paradigm", "synergy", "ecosystem",
     "realm", "cornerstone", "testament", "beacon", "catalyst",
     "underpinning", "interplay",
 }
 
+# Tier 2 (medium-signal): common words that spike in AI text but also appear
+# in normal technical writing. Only flagged when co-occurring with other signals.
+# Source: Kobak et al. 2025 "common 10" set (Δcommon=0.134) + corroborated words.
+AI_TIER2_WORDS = {
+    "comprehensive", "crucial", "enhancing", "exhibited", "insights",
+    "commendable", "notable", "paramount",
+}
+
 AI_TRANSITIONS = {
     "furthermore", "moreover", "notably", "consequently",
+    "additionally",
+}
+
+# Kobak "common 10" — words whose aggregate frequency strongly predicts LLM use.
+# Not flagged individually (too common), but their density is tracked separately.
+KOBAK_COMMON_10 = {
+    "across", "additionally", "comprehensive", "crucial", "enhancing",
+    "exhibited", "insights", "notably", "particularly", "within",
 }
 
 AI_PHRASES = [
@@ -80,9 +99,23 @@ AI_PHRASES = [
     "warrants further investigation", "a growing body of",
     "in conclusion", "this underscores", "this study aims to",
     "the findings suggest", "this highlights the",
+    "it is essential to", "it is crucial to",
+    "a wide range of", "a broad range of",
+    "plays a vital role", "plays a significant role",
+    "plays a key role", "plays a pivotal role",
 ]
 
-ALL_AI_WORDS = AI_VERBS | AI_ADJECTIVES | AI_NOUNS | AI_TRANSITIONS
+# High-signal words used for primary AI vocab density (backward-compatible)
+ALL_AI_WORDS = AI_TIER1_VERBS | AI_TIER1_ADJECTIVES | AI_TIER1_NOUNS | AI_TRANSITIONS
+
+# Sentence starters typical of AI text (Przystalski et al. 2025; multi_detector.py)
+AI_SENTENCE_STARTERS = [
+    "furthermore,", "moreover,", "additionally,", "consequently,",
+    "in conclusion,", "it is worth noting", "it is important to note",
+    "in today's", "in the modern", "in an era",
+    "this highlights", "this underscores", "this showcases",
+    "notably,", "specifically,", "crucially,", "importantly,",
+]
 
 
 def _split_sentences(text: str) -> list[str]:
@@ -180,6 +213,67 @@ def _compute_ai_vocab_density(words: list[str], spacy_lemmas: dict) -> float:
     return round(hits / len(words) * 1000, 2)
 
 
+def _compute_hapax_ratio(words: list[str]) -> float | None:
+    """Hapax legomena ratio = words appearing exactly once / unique words.
+    AI: 0.45-0.60, Human: 0.60-0.85 (Opara 2024, top-4 feature).
+    Returns None if fewer than 50 words (unstable on short text)."""
+    if len(words) < 50:
+        return None
+    freq = {}
+    for w in words:
+        freq[w] = freq.get(w, 0) + 1
+    unique = len(freq)
+    if unique == 0:
+        return 0.0
+    hapax = sum(1 for c in freq.values() if c == 1)
+    return round(hapax / unique, 4)
+
+
+def _compute_yules_k(words: list[str]) -> float | None:
+    """Yule's K = 10⁴ × (M₂ − N) / N² where N=total words, M₂=Σ(fᵢ²).
+    Higher K = more repetitive = more AI-like.
+    AI: 80-200, Human: 20-100 (multi_detector.py, Retengart/entropy-analysis).
+    Returns None if fewer than 50 words."""
+    if len(words) < 50:
+        return None
+    n = len(words)
+    freq = {}
+    for w in words:
+        freq[w] = freq.get(w, 0) + 1
+    m2 = sum(f * f for f in freq.values())
+    if n * n == 0:
+        return 0.0
+    return round(10000 * (m2 - n) / (n * n), 2)
+
+
+def _compute_contraction_rate(text: str, sentences: list[str]) -> float:
+    """Contractions per sentence. AI uses fewer contractions (Opara 2024).
+    Measures formality; not a standalone AI marker."""
+    if not sentences:
+        return 0.0
+    contraction_re = re.compile(
+        r"\b\w+(?:'(?:t|s|re|ve|ll|d|m))\b", re.IGNORECASE
+    )
+    count = len(contraction_re.findall(text))
+    return round(count / len(sentences), 4)
+
+
+def _detect_ai_starters(sentences: list[str]) -> list[dict]:
+    """Detect sentences that begin with AI-typical transition starters.
+    Source: Przystalski et al. 2025, multi_detector.py."""
+    findings = []
+    for idx, sent in enumerate(sentences):
+        sent_lower = sent.lower().lstrip()
+        for starter in AI_SENTENCE_STARTERS:
+            if sent_lower.startswith(starter):
+                findings.append({
+                    "line": idx + 1,
+                    "starter": starter.rstrip(","),
+                })
+                break
+    return findings
+
+
 def _compute_passive_voice_rate(
     sentences: list[str], passive_texts: set[str] | None = None
 ) -> float:
@@ -256,6 +350,15 @@ def _generate_findings(
                 f"({', '.join(hedge_words)})"
             )
 
+        # Check AI-typical sentence starters (Przystalski et al. 2025)
+        sent_stripped = sent_lower.lstrip()
+        for starter in AI_SENTENCE_STARTERS:
+            if sent_stripped.startswith(starter):
+                issues.append(
+                    f"AI-typical starter: \"{starter.rstrip(',')}\""
+                )
+                break
+
         if issues:
             findings.append({
                 "line": idx + 1,
@@ -278,6 +381,9 @@ def analyze_text(text: str) -> dict:
             "ai_vocabulary_density": 0,
             "passive_voice_rate": 0,
             "flesch_kincaid_grade": 0,
+            "hapax_ratio": None,
+            "yules_k": None,
+            "contraction_rate": 0,
             "findings": [],
         }
 
@@ -298,6 +404,9 @@ def analyze_text(text: str) -> dict:
         "ai_vocabulary_density": _compute_ai_vocab_density(words, spacy_lemmas),
         "passive_voice_rate": _compute_passive_voice_rate(sentences, passive_texts),
         "flesch_kincaid_grade": _compute_readability(text),
+        "hapax_ratio": _compute_hapax_ratio(words),
+        "yules_k": _compute_yules_k(words),
+        "contraction_rate": _compute_contraction_rate(text, sentences),
         "sentence_length_mean": round(statistics.mean(sentence_lengths), 2) if sentence_lengths else 0,
         "sentence_length_stdev": round(statistics.stdev(sentence_lengths), 2) if len(sentence_lengths) >= 2 else 0,
         "sentence_length_min": min(sentence_lengths) if sentence_lengths else 0,
@@ -350,6 +459,20 @@ def _format_human(result: dict) -> str:
     if mtld is not None:
         mtld_flag = " ⚠ AI-like (low lexical diversity)" if mtld < 50 else ""
         lines.append(f"MTLD:                {mtld:.1f}{mtld_flag}")
+
+    hapax = result.get("hapax_ratio")
+    if hapax is not None:
+        hapax_flag = " ⚠ AI-like (low hapax ratio)" if hapax < 0.58 else ""
+        lines.append(f"Hapax ratio:         {hapax:.3f}{hapax_flag}")
+
+    yules = result.get("yules_k")
+    if yules is not None:
+        yules_flag = " ⚠ AI-like (high vocabulary repetition)" if yules > 100 else ""
+        lines.append(f"Yule's K:            {yules:.1f}{yules_flag}")
+
+    cr = result.get("contraction_rate", 0)
+    cr_note = " (formal/AI-like)" if cr == 0 and result["sentence_count"] > 3 else ""
+    lines.append(f"Contraction rate:    {cr:.2f}/sentence{cr_note}")
 
     lines.append("")
 

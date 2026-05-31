@@ -226,6 +226,107 @@ class TestMTLD:
         assert result["mtld"] is None
 
 
+class TestHapaxRatio:
+    """Hapax legomena ratio = words appearing once / unique words.
+    AI: 0.45-0.60, Human: 0.60-0.85 (Opara 2024, StyloAI)."""
+
+    def test_repetitive_text_low_hapax(self, analyze_module):
+        result = analyze_module.analyze_text(REPETITIVE_TEXT)
+        assert result["hapax_ratio"] is not None
+        assert result["hapax_ratio"] < 0.15, (
+            f"Repetitive text should have very low hapax ratio, got {result['hapax_ratio']}"
+        )
+
+    def test_ai_text_has_hapax(self, analyze_module):
+        result = analyze_module.analyze_text(AI_TEXT)
+        assert result["hapax_ratio"] is not None
+
+    def test_human_text_higher_hapax_than_repetitive(self, analyze_module):
+        result_human = analyze_module.analyze_text(HUMAN_TEXT)
+        result_rep = analyze_module.analyze_text(REPETITIVE_TEXT)
+        if result_human["hapax_ratio"] is not None and result_rep["hapax_ratio"] is not None:
+            assert result_human["hapax_ratio"] > result_rep["hapax_ratio"], (
+                f"Human hapax={result_human['hapax_ratio']} should be > "
+                f"repetitive hapax={result_rep['hapax_ratio']}"
+            )
+
+    def test_none_for_short_text(self, analyze_module):
+        result = analyze_module.analyze_text(SINGLE_SENTENCE)
+        assert result["hapax_ratio"] is None
+
+
+class TestYulesK:
+    """Yule's K = 10⁴ × (M₂ − N) / N². Higher = more repetitive.
+    AI: 80-200, Human: 20-100 (multi_detector.py, Retengart)."""
+
+    def test_repetitive_text_high_k(self, analyze_module):
+        result = analyze_module.analyze_text(REPETITIVE_TEXT)
+        assert result["yules_k"] is not None
+        assert result["yules_k"] > 80, (
+            f"Repetitive text should have high Yule's K, got {result['yules_k']}"
+        )
+
+    def test_varied_text_lower_k(self, analyze_module):
+        result_rep = analyze_module.analyze_text(REPETITIVE_TEXT)
+        long_varied = VARIED_SENTENCES * 3
+        result_var = analyze_module.analyze_text(long_varied)
+        if result_var["yules_k"] is not None and result_rep["yules_k"] is not None:
+            assert result_var["yules_k"] < result_rep["yules_k"], (
+                f"Varied text K={result_var['yules_k']} should be < "
+                f"repetitive text K={result_rep['yules_k']}"
+            )
+
+    def test_none_for_short_text(self, analyze_module):
+        result = analyze_module.analyze_text(SINGLE_SENTENCE)
+        assert result["yules_k"] is None
+
+
+class TestContractionRate:
+    """Contraction rate = contractions per sentence. AI uses fewer."""
+
+    def test_human_text_has_contractions(self, analyze_module):
+        result = analyze_module.analyze_text(HUMAN_TEXT)
+        assert result["contraction_rate"] > 0, (
+            f"Human text with contractions should have rate > 0, got {result['contraction_rate']}"
+        )
+
+    def test_ai_text_no_contractions(self, analyze_module):
+        result = analyze_module.analyze_text(AI_TEXT)
+        assert result["contraction_rate"] == 0, (
+            f"AI text fixture has no contractions, expected rate 0, got {result['contraction_rate']}"
+        )
+
+
+class TestSentenceStarters:
+    """AI-typical sentence starters produce per-sentence findings."""
+
+    def test_ai_starters_flagged(self, analyze_module):
+        text = (
+            "Furthermore, the system processes data efficiently. "
+            "Moreover, the architecture supports scaling. "
+            "Additionally, the team implemented caching. "
+            "The server handles requests well."
+        )
+        result = analyze_module.analyze_text(text)
+        starter_findings = [
+            f for f in result["findings"]
+            if any("AI-typical starter" in i for i in f["issues"])
+        ]
+        assert len(starter_findings) == 3, (
+            f"Expected 3 AI-starter findings, got {len(starter_findings)}"
+        )
+
+    def test_normal_starters_not_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(HUMAN_TEXT)
+        starter_findings = [
+            f for f in result["findings"]
+            if any("AI-typical starter" in i for i in f["issues"])
+        ]
+        assert len(starter_findings) == 0, (
+            f"Human text should have no AI-starter findings, got {len(starter_findings)}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # CLI integration tests
 # ---------------------------------------------------------------------------
@@ -242,7 +343,8 @@ class TestCLI:
         data = json.loads(proc.stdout)
         expected_keys = {"burstiness", "ttr", "ai_vocabulary_density",
                          "passive_voice_rate", "flesch_kincaid_grade",
-                         "sentence_count", "word_count", "findings"}
+                         "sentence_count", "word_count", "findings",
+                         "hapax_ratio", "yules_k", "contraction_rate"}
         assert expected_keys.issubset(data.keys()), f"Missing keys: {expected_keys - data.keys()}"
 
     def test_file_input(self, tmp_path):

@@ -109,10 +109,13 @@ python tools/analyze.py --file draft.md --json
 
 | Metric | AI-like | Human-like | Source |
 |--------|---------|------------|--------|
-| Burstiness (sentence length variance) | < 0.3 | > 0.5 | Community consensus |
-| TTR (type-token ratio) | < 0.4 | > 0.5 | Lexical diversity research |
+| Burstiness (sentence length variance) | < 0.3 | > 0.5 | GPTZero concept; multi_detector.py calibration |
+| TTR (type-token ratio) | < 0.4 | > 0.5 | Opara 2024 (top-4 feature) |
 | AI vocabulary density | > 10/1000 | < 5/1000 | Kobak et al. 2025 |
 | Passive voice rate | > 20% | < 10% | Style guides |
+| Hapax ratio (words appearing once / unique) | < 0.58 | > 0.60 | Opara 2024 (top-4); multi_detector.py |
+| Yule's K (vocabulary repetition) | > 100 | < 100 | Retengart; multi_detector.py |
+| Contraction rate (per sentence) | 0 | > 0 | Opara 2024 (formality signal) |
 
 ### Example output
 
@@ -126,11 +129,18 @@ TTR:                 0.738
 AI vocab density:    238.1/1000 words ⚠ High AI vocabulary density
 Passive voice rate:  25.0% ⚠ High passive voice rate
 Flesch-Kincaid:      14.4
+Hapax ratio:         0.812
+Yule's K:            45.2
+Contraction rate:    0.00/sentence (formal/AI-like)
 
 ── Findings (4 sentences flagged) ──
 
   [1] The landscape of modern technology has undergone a transformative shift.
       → AI-overused words: landscape, transformative (Kobak et al. frequency ratios)
+
+  [2] Furthermore, the comprehensive ecosystem elucidates the interplay of factors.
+      → AI-overused words: comprehensive, ecosystem, elucidates, interplay
+      → AI-typical starter: "furthermore"
 ```
 
 ## Scoring

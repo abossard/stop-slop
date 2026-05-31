@@ -222,3 +222,38 @@ Tortured phrases and hedging language that spike in AI-generated academic text:
 - "Warrants further investigation"
 
 These are hallmarks of academic AI slop. In non-academic writing, they read as pompous filler. In academic writing, they signal the author let AI do the thinking.
+
+### Kobak "Common 10" — Aggregate LLM Frequency Markers
+
+Ten words whose combined frequency strongly predicts LLM-assisted text (Kobak et al. 2025, *Science Advances* Vol.11 No.27, Δcommon=0.134). Individually common in technical writing; clustered, they signal AI.
+
+| Word | Notes |
+|------|-------|
+| across | Often redundant: "across industries" → "in industries" |
+| additionally | Use "also" or restructure |
+| comprehensive | Overused modifier. Be specific: "covers X, Y, Z" |
+| crucial | "Important" or "critical" suffice |
+| enhancing | "Improving" is plainer |
+| exhibited | "Showed" |
+| insights | Vague. Name the specific insight. |
+| notably | "Especially" or just state the notable thing |
+| particularly | "Especially" or cut |
+| within | Often redundant: "within the system" → "in the system" |
+
+**Rule:** Three or more of these in a paragraph warrants a rewrite. Two is a soft signal. Each one individually is fine.
+
+### AI-Typical Sentence Starters
+
+Sentences beginning with formal transition connectors are disproportionately common in AI text (Przystalski et al. 2025, arXiv:2507.00838).
+
+- "Furthermore, ..."
+- "Moreover, ..."
+- "Additionally, ..."
+- "Consequently, ..."
+- "In conclusion, ..."
+- "Notably, ..."
+- "Specifically, ..."
+- "Crucially, ..."
+- "Importantly, ..."
+
+**Rule:** More than 2 sentences in a paragraph starting with these connectors is a strong AI signal. Replace with direct transitions or restructure.
