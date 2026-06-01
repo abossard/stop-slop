@@ -30,10 +30,10 @@ stop-slop/
 │   └── stop-slop/
 │       └── SKILL.md       # Skill for plugin discovery
 ├── tools/
-│   ├── analyze.py         # AI slop analysis tool (Python)
+│   ├── slopometer         # Wrapper: `uv run` preferred, `python3` fallback
+│   ├── analyze.py         # AI slop analysis tool (Python, PEP 723)
 │   ├── test_analyze.py    # Tests
-│   └── requirements.txt   # Python dependencies
-├── SKILL.md               # Core instructions (standalone use)
+│   └── requirements.txt   # Python deps (fallback path)
 ├── references/
 │   ├── phrases.md         # Phrases to remove
 │   ├── structures.md      # Structural patterns to avoid
@@ -87,6 +87,14 @@ A Python CLI for quantitative AI slop detection. Measures burstiness, lexical di
 
 ### Setup
 
+The skill invokes the analyzer through `tools/slopometer`, which prefers [`uv`](https://docs.astral.sh/uv/) and requires no manual setup — PEP 723 inline metadata in `analyze.py` declares the deps, including the `en_core_web_sm` spaCy model.
+
+```bash
+brew install uv   # or: curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Fallback (no `uv`): the wrapper switches to `python3` and prints a one-line hint on stderr. To make the fallback work, install deps manually:
+
 ```bash
 pip install -r tools/requirements.txt
 python -m spacy download en_core_web_sm
@@ -96,14 +104,16 @@ python -m spacy download en_core_web_sm
 
 ```bash
 # Human-readable report from stdin
-echo "your text here" | python tools/analyze.py
+echo "your text here" | tools/slopometer
 
-# JSON output for CI/scripting
-cat draft.md | python tools/analyze.py --json
+# JSON output for CI/scripting (parse with jq)
+cat draft.md | tools/slopometer --json | jq '.findings'
 
 # From file
-python tools/analyze.py --file draft.md --json
+tools/slopometer --file draft.md --json
 ```
+
+The wrapper writes `runner=uv` or `runner=python3` to stderr so callers can verify which path executed.
 
 ### Metrics
 

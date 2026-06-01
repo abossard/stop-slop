@@ -381,3 +381,77 @@ class TestCLI:
         assert proc.returncode == 0
         data = json.loads(proc.stdout)
         assert data["word_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Wrapper integration tests (tools/slopometer)
+# ---------------------------------------------------------------------------
+
+import os
+import shutil
+
+WRAPPER = str(Path(__file__).parent / "slopometer")
+
+
+def _path_without(binary: str) -> str:
+    """Return a PATH string with directories containing `binary` removed."""
+    keep = []
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        candidate = os.path.join(entry, binary)
+        if not (os.path.isfile(candidate) and os.access(candidate, os.X_OK)):
+            keep.append(entry)
+    return os.pathsep.join(keep)
+
+
+@pytest.mark.parametrize(
+    "scenario,expected_runner,skip_if_missing",
+    [
+        ("uv", "runner=uv", "uv"),
+        ("python3-fallback", "runner=python3", "python3"),
+    ],
+)
+class TestWrapper:
+    """slopometer wrapper: prefers uv, falls back to python3."""
+
+    def test_emits_valid_json(self, scenario, expected_runner, skip_if_missing):
+        if shutil.which(skip_if_missing) is None:
+            pytest.skip(f"{skip_if_missing} not available")
+
+        env = {"HOME": os.environ.get("HOME", "/tmp"),
+               "TMPDIR": os.environ.get("TMPDIR", "/tmp")}
+        if scenario == "uv":
+            env["PATH"] = os.environ["PATH"]
+        else:
+            env["PATH"] = _path_without("uv")
+
+        proc = subprocess.run(
+            [WRAPPER, "--json"],
+            input=AI_TEXT, capture_output=True, text=True,
+            timeout=300, env=env,
+        )
+        assert proc.returncode == 0, f"stderr: {proc.stderr}"
+        assert expected_runner in proc.stderr, f"stderr was: {proc.stderr!r}"
+        data = json.loads(proc.stdout)
+        assert "burstiness" in data
+        assert "findings" in data
+        assert data["word_count"] > 0
+
+
+def test_wrapper_no_runners_exits_nonzero(tmp_path):
+    """If neither uv nor python3 is on PATH, wrapper exits with hint."""
+    # /bin and /usr/bin are needed so `env bash` works, but must not contain
+    # python3 or uv. macOS /usr/bin ships python3, so skip if we can't isolate.
+    minimal = os.pathsep.join(
+        p for p in ["/bin", "/usr/bin"]
+        if not (os.path.isfile(os.path.join(p, "python3"))
+                or os.path.isfile(os.path.join(p, "uv")))
+    )
+    if not minimal or shutil.which("bash", path=minimal) is None:
+        pytest.skip("cannot construct a PATH with bash but without python3/uv")
+    env = {"PATH": minimal, "HOME": os.environ.get("HOME", "/tmp")}
+    proc = subprocess.run(
+        [WRAPPER, "--json"],
+        input="hi", capture_output=True, text=True, timeout=30, env=env,
+    )
+    assert proc.returncode != 0
+    assert "uv" in proc.stderr.lower() or "python" in proc.stderr.lower()

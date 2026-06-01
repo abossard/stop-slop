@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-01
+
+### Added
+- `tools/slopometer` wrapper script: prefers `uv run` (PEP 723 inline deps, zero-setup), falls back to `python3` with a stderr hint when `uv` is missing.
+- PEP 723 inline-script metadata in `tools/analyze.py` so `uv run` resolves all deps (including the `en_core_web_sm` spaCy model wheel) on first invocation.
+- Skill (`skills/stop-slop/SKILL.md`) now defines a **Quantitative check** step that invokes the wrapper before delivering prose.
+- Parametrized `TestWrapper` cases covering `uv` and `python3-fallback` paths; `test_wrapper_no_runners_exits_nonzero` for the missing-runner contract.
+
+### Changed
+- README "Analysis Tool" section leads with `uv`; the manual `pip install` flow is documented as fallback.
+
 ## 2026-01-13
 
 ### Added

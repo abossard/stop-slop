@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#   "textstat>=0.7.0",
+#   "spacy>=3.7.0,<3.9",
+#   "lexicalrichness>=0.5.0",
+#   "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
+# ]
+# ///
 """AI slop detector — analyzes text for common AI-generated writing patterns.
 
 Metrics:
@@ -13,6 +22,8 @@ Usage:
   echo "your text" | python analyze.py --json     # machine-readable
   python analyze.py --file input.txt --json       # from file
 """
+
+from __future__ import annotations
 
 import argparse
 import json

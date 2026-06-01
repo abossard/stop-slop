@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# slopometer — runs tools/analyze.py preferring `uv run` (PEP 723 inline deps),
+# falling back to `python3 tools/analyze.py` if `uv` is missing.
+#
+# Stderr always reports `runner=<uv|python3>` so callers can verify the path.
+# Exits non-zero with a hint if neither runner can satisfy dependencies.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT="$HERE/analyze.py"
+
+if command -v uv >/dev/null 2>&1; then
+  echo "runner=uv" >&2
+  exec uv run --quiet --script "$SCRIPT" "$@"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  echo "runner=python3" >&2
+  echo "hint: install \`uv\` (https://docs.astral.sh/uv/) for zero-setup runs, or \`pip install -r $HERE/requirements.txt && python -m spacy download en_core_web_sm\`." >&2
+  exec python3 "$SCRIPT" "$@"
+fi
+
+echo "slopometer: neither \`uv\` nor \`python3\` found on PATH" >&2
+echo "hint: install uv via \`brew install uv\` or see https://docs.astral.sh/uv/" >&2
+exit 127

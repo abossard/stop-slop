@@ -26,6 +26,16 @@ Eliminate predictable AI writing patterns from prose.
 
 8. **Cut quotables.** If it sounds like a pull-quote, rewrite it.
 
+## Quantitative check
+
+Before delivering prose longer than ~100 words, run the slopometer for hard numbers:
+
+- Command: `tools/slopometer --json` (reads stdin, writes JSON to stdout)
+- Runner: prefers `uv run` (zero-setup via PEP 723 inline deps); falls back to `python3` with a stderr hint when `uv` is missing
+- Parse with `jq` — never `grep`/`sed` over JSON
+
+Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate, findings[]) to prioritize edits, then re-run after revision.
+
 ## Quick Checks
 
 Before delivering prose:
