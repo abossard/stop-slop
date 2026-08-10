@@ -84,9 +84,15 @@ AI_TIER1_NOUNS = {
 # Tier 2 (medium-signal): common words that spike in AI text but also appear
 # in normal technical writing. Only flagged when co-occurring with other signals.
 # Source: Kobak et al. 2025 "common 10" set (Δcommon=0.134) + corroborated words.
+# Extended with the broad list from Wikipedia:Signs_of_AI_writing. Those words
+# ("robust", "key", "valuable") are frequent in legitimate technical prose, so
+# they stay in tier 2 rather than tier 1.
 AI_TIER2_WORDS = {
     "comprehensive", "crucial", "enhancing", "exhibited", "insights",
     "commendable", "notable", "paramount",
+    "robust", "valuable", "vibrant", "enduring", "garner", "boast",
+    "align", "emphasize", "enhance", "highlight", "key", "profound",
+    "renowned", "exemplify", "seamless",
 }
 
 AI_TRANSITIONS = {
@@ -119,6 +125,12 @@ AI_PHRASES = [
 # High-signal words used for primary AI vocab density (backward-compatible)
 ALL_AI_WORDS = AI_TIER1_VERBS | AI_TIER1_ADJECTIVES | AI_TIER1_NOUNS | AI_TRANSITIONS
 
+# One compiled alternation instead of one scan per phrase. Longest-first so an
+# overlapping pair resolves to the more specific phrase.
+AI_PHRASE_RE = re.compile(
+    "|".join(re.escape(p) for p in sorted(AI_PHRASES, key=len, reverse=True))
+)
+
 # Sentence starters typical of AI text (Przystalski et al. 2025; multi_detector.py)
 AI_SENTENCE_STARTERS = [
     "furthermore,", "moreover,", "additionally,", "consequently,",
@@ -127,6 +139,112 @@ AI_SENTENCE_STARTERS = [
     "this highlights", "this underscores", "this showcases",
     "notably,", "specifically,", "crucially,", "importantly,",
 ]
+
+# --- Model-era signature markers ---
+# Rare but highly diagnostic tics. Measured at 19.5 hits per 100k words on
+# Opus 5 (~0.2/1000), far below the >10/1000 AI-vocabulary density flag, so
+# these are counted by occurrence instead of density.
+# Sources: github.com/anthropics/claude-code/issues/53454,
+# reddit.com/r/ClaudeAI/comments/1tob6q5, jola.dev "how to stop Claude from
+# saying load-bearing".
+_APO = "[\u2019']"
+
+SIGNATURE_MARKERS = {
+    "load-bearing": r"\bload[-\s]bearing\b",
+    "honest take": rf"\bhonest\s+(?:take|truth)\b",
+    "not nothing": r"\bnot nothing\b",
+    "sit with that": r"\bsit with (?:that|it|this)\b",
+    "doing a lot of work": r"\bdoing a lot of (?:the )?work\b",
+    # Only the abstract/metaphorical use. A bare `seam` match fires on coal
+    # seams, weld seams, sewing seams and seam carving, which are ordinary
+    # domain nouns, so the collocation is required.
+    "seam": r"\b(?:load[-\s]bearing|structural|conceptual|architectural)\s+seams?\b"
+            r"|\bseams?\s+(?:of|in)\s+the\s+(?:argument|design|abstraction|reasoning)\b",
+}
+
+SIGNATURE_MARKER_RES = {
+    label: re.compile(pattern, re.IGNORECASE)
+    for label, pattern in SIGNATURE_MARKERS.items()
+}
+
+# Negation-then-correction frames. Restricted to copular constructions so
+# ordinary negation ("I did not fix it") is not swept up.
+# Corroborated by Wikipedia:Signs_of_AI_writing ("parallel constructions
+# involving not, but, or however") and Hollis Robbins ("it's not just X, but Y").
+NEGATIVE_PARALLELISM_RES = [
+    re.compile(rf"\bnot just\b[^.!?]*?\b(?:but|it{_APO}?s)\b", re.IGNORECASE),
+    re.compile(r"\bnot only\b[^.!?]*?\bbut\b", re.IGNORECASE),
+    re.compile(
+        rf"\b(?:is|was|are|were|it{_APO}s|that{_APO}s|there{_APO}s)\s+not\b"
+        rf"[^.!?]*?,\s*(?:it|that|they|there){_APO}?s\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"\b(?:is|are|was|were|does|did|do)n{_APO}t\b"
+        rf"[^.!?]*?,\s*(?:it|that|they){_APO}?s\b",
+        re.IGNORECASE,
+    ),
+    re.compile(rf"\bthat{_APO}?s not nothing\b", re.IGNORECASE),
+    # "but" must introduce an alternative predicate, not a new clause.
+    # Excluding a following subject pronoun keeps concessive uses out:
+    # "The build is not reproducible but we ship it anyway."
+    re.compile(
+        r"\b(?:is|was|are|were)\s+not\s+(?:a|an|the)?\s*[^.!?,]*?\bbut\s+"
+        r"(?!we\b|i\b|they\b|he\b|she\b|you\b|it\b|that\b|this\b|there\b)",
+        re.IGNORECASE,
+    ),
+]
+
+# Validation openers. Sycophancy is a documented RLHF artifact: preference
+# models favour responses matching the user's view (arXiv:2310.13548).
+SYCOPHANCY_RES = [
+    re.compile(
+        rf"^you(?:{_APO}re|\s+are)\s+"
+        r"(?:absolutely|completely|totally|so|entirely)\s+right",
+        re.IGNORECASE,
+    ),
+    # Restricted to speech-act verbs. A bare `right to \w+` also matches
+    # "You're right to left of the divider".
+    re.compile(
+        rf"^you(?:{_APO}re|\s+are)\s+right\s+to\s+"
+        r"(?:call|point|push|question|flag|raise|challenge|note|highlight)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"^(?:great|excellent|good|fair|sharp)\s+(?:question|point|catch)",
+               re.IGNORECASE),
+    re.compile(
+        rf"^(?:that|this){_APO}?s\s+(?:a\s+)?(?:sharp|great|excellent|really good)\s+"
+        r"(?:insight|point|question|catch|observation)",
+        re.IGNORECASE,
+    ),
+]
+
+# Leading markdown decoration, stripped before the sentence-start anchors run.
+# The consuming skill lints markdown, where "- You're absolutely right" and
+# "**You're absolutely right**" are common.
+MARKDOWN_PREFIX_RE = re.compile(r"^(?:[>\-*+#]+\s*|\d+[.)]\s*|[*_`]{1,3})+")
+
+# Metadiscourse preamble before the actual content. Hyland's (2005) frame
+# markers and code glosses; LLM text is skewed toward interactive metadiscourse
+# (Jiang & Hyland, ESP 2025).
+THROAT_CLEARING_RES = [
+    re.compile(r"\blet me be (?:honest|clear|direct|blunt)\b", re.IGNORECASE),
+    re.compile(r"\bi need to be (?:\w+\s+)?honest\b", re.IGNORECASE),
+    # The discourse-marker use is punctuated. Without the trailing comma or
+    # colon this also matches "clear-headed", "to be fair to him", and
+    # "designed to be fair", which are ordinary prose.
+    re.compile(r"\bto be (?:clear|honest|fair|blunt)\s*[,:]", re.IGNORECASE),
+    re.compile(rf"\bhere{_APO}s the thing\b", re.IGNORECASE),
+    re.compile(rf"\blet{_APO}s unpack\b", re.IGNORECASE),
+    re.compile(rf"\bi{_APO}ll be honest\b", re.IGNORECASE),
+    re.compile(r"\bi will give it to you straight\b", re.IGNORECASE),
+]
+
+EM_DASH = "\u2014"
+
+# Minimum POS tokens before syntactic-template rates are stable enough to
+# report. Matches the conservative floors used for hapax/Yule's K/MTLD.
+TEMPLATE_MIN_TOKENS = 100
 
 
 def _split_sentences(text: str) -> list[str]:
@@ -158,36 +276,36 @@ def _compute_ttr(words: list[str]) -> float:
     return round(len(set(words)) / len(words), 4)
 
 
-def _lemmatize_fallback(word: str) -> str:
+def _lemmatize_fallback(word: str, lexicon: set[str]) -> str:
     """Lemmatize via simple suffix stripping (no spaCy)."""
     if word.endswith("ing") and len(word) > 5:
         base = word[:-3]
-        if base + "e" in ALL_AI_WORDS:
+        if base + "e" in lexicon:
             return base + "e"
-        if base in ALL_AI_WORDS:
+        if base in lexicon:
             return base
     if word.endswith("es") and len(word) > 4:
-        if word[:-2] in ALL_AI_WORDS:
+        if word[:-2] in lexicon:
             return word[:-2]
-        if word[:-1] in ALL_AI_WORDS:
+        if word[:-1] in lexicon:
             return word[:-1]
     if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
-        if word[:-1] in ALL_AI_WORDS:
+        if word[:-1] in lexicon:
             return word[:-1]
     if word.endswith("ed") and len(word) > 4:
-        if word[:-2] in ALL_AI_WORDS:
+        if word[:-2] in lexicon:
             return word[:-2]
-        if word[:-1] in ALL_AI_WORDS:
+        if word[:-1] in lexicon:
             return word[:-1]
-        if word[:-2] + "e" in ALL_AI_WORDS:
+        if word[:-2] + "e" in lexicon:
             return word[:-2] + "e"
     return word
 
 
 def _spacy_analyze(text: str) -> dict:
-    """Single spaCy pass over the full text. Returns lemma map and passive sentence texts."""
+    """Single spaCy pass over the full text. Returns lemma map, passive sentence texts, POS tags."""
     if not HAS_SPACY:
-        return {"lemmas": {}, "passive_sentence_texts": set()}
+        return {"lemmas": {}, "passive_sentence_texts": set(), "pos_tags": []}
 
     doc = _nlp(text)
     # Build token -> lemma mapping
@@ -203,24 +321,37 @@ def _spacy_analyze(text: str) -> dict:
         if any(tok.dep_ in ("nsubjpass", "auxpass") for tok in sent):
             passive_sentence_texts.add(sent.text.strip())
 
-    return {"lemmas": lemmas, "passive_sentence_texts": passive_sentence_texts}
+    pos_tags = [tok.pos_ for tok in doc if not tok.is_space]
+
+    return {
+        "lemmas": lemmas,
+        "passive_sentence_texts": passive_sentence_texts,
+        "pos_tags": pos_tags,
+    }
 
 
-def _resolve_lemma(word: str, spacy_lemmas: dict) -> str:
-    """Get lemma from spaCy cache, falling back to suffix stripping."""
-    if word in spacy_lemmas:
-        return spacy_lemmas[word]
-    return _lemmatize_fallback(word)
+def _lexicon_hit(word: str, spacy_lemmas: dict, lexicon: set[str]) -> bool:
+    """True if the word belongs to the lexicon by surface form, spaCy lemma,
+    or suffix fallback.
+
+    spaCy mis-tags inflections in some contexts: in "The comprehensive review
+    delves into crucial insights.", it reads "delves" as a noun and lemmatizes
+    it to "delf", which silently drops a tier-1 word. A lexicon miss therefore
+    retries with suffix stripping instead of trusting the tagger alone.
+    """
+    if word in lexicon:
+        return True
+    if spacy_lemmas.get(word) in lexicon:
+        return True
+    return _lemmatize_fallback(word, lexicon) in lexicon
 
 
 def _compute_ai_vocab_density(words: list[str], spacy_lemmas: dict) -> float:
     """Count AI vocabulary words per 1000 words. Lemmatizes to catch inflections."""
     if not words:
         return 0.0
-    hits = sum(1 for w in words if _resolve_lemma(w, spacy_lemmas) in ALL_AI_WORDS)
-    joined = " ".join(words)
-    for phrase in AI_PHRASES:
-        hits += len(re.findall(re.escape(phrase), joined))
+    hits = sum(1 for w in words if _lexicon_hit(w, spacy_lemmas, ALL_AI_WORDS))
+    hits += len(AI_PHRASE_RE.findall(" ".join(words)))
     return round(hits / len(words) * 1000, 2)
 
 
@@ -285,6 +416,90 @@ def _detect_ai_starters(sentences: list[str]) -> list[dict]:
     return findings
 
 
+def _detect_signature_markers(text: str) -> dict[str, int]:
+    """Count model-era signature markers by occurrence.
+
+    Density is the wrong instrument here: 'load-bearing' is reported at
+    19.5 hits per 100k words on Opus 5, roughly 0.2 per 1000 words, so it
+    would never cross the AI-vocabulary density threshold.
+    """
+    counts = {}
+    for label, pattern in SIGNATURE_MARKER_RES.items():
+        hits = len(pattern.findall(text))
+        if hits:
+            counts[label] = hits
+    return counts
+
+
+def _compute_lexicon_density(
+    words: list[str], lexicon: set[str], spacy_lemmas: dict
+) -> float:
+    """Words from a lexicon per 1000 words, lemmatized to catch inflections."""
+    if not words:
+        return 0.0
+    hits = sum(1 for w in words if _lexicon_hit(w, spacy_lemmas, lexicon))
+    return round(hits / len(words) * 1000, 2)
+
+
+def _compute_syntactic_templates(pos_tags: list[str], has_pos: bool) -> dict | None:
+    """POS n-gram template repetition (Shaib et al. 2024, arXiv:2407.00211).
+
+    A template is a POS n-gram that repeats at least twice. The rate is the
+    fraction of n-gram positions covered by a repeated n-gram, averaged over
+    n in 4..8.
+
+    The rate is NOT length-invariant: it climbs with document size because
+    longer texts give every n-gram more chances to recur. Measured on one
+    human-written corpus it ran 0.13 at 150 words and 0.61 at 28k words, so
+    the number is only comparable between texts of similar length and carries
+    no AI-like threshold.
+
+    Returns None with a `reason` when it cannot be computed.
+    """
+    if not has_pos:
+        return None
+    if len(pos_tags) < TEMPLATE_MIN_TOKENS:
+        return None
+
+    by_n = {}
+    top_templates = []
+    for n in range(4, 9):
+        if len(pos_tags) < n:
+            continue
+        ngrams = [tuple(pos_tags[i:i + n]) for i in range(len(pos_tags) - n + 1)]
+        counts = {}
+        for gram in ngrams:
+            counts[gram] = counts.get(gram, 0) + 1
+        repeated = sum(1 for gram in ngrams if counts[gram] >= 2)
+        by_n[n] = round(repeated / len(ngrams), 4)
+        if n == 6:
+            ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+            top_templates = [
+                {"pattern": " ".join(gram), "count": count}
+                for gram, count in ranked[:3] if count >= 2
+            ]
+
+    if not by_n:
+        return None
+
+    return {
+        "template_rate": round(sum(by_n.values()) / len(by_n), 4),
+        "by_n": by_n,
+        "top_templates": top_templates,
+        "pos_token_count": len(pos_tags),
+    }
+
+
+def _match_labels(sent: str, patterns: list) -> list[str]:
+    """Return the matched substrings for every pattern that fires."""
+    hits = []
+    for pattern in patterns:
+        found = pattern.search(sent)
+        if found:
+            hits.append(found.group(0).strip())
+    return hits
+
+
 def _compute_passive_voice_rate(
     sentences: list[str], passive_texts: set[str] | None = None
 ) -> float:
@@ -324,7 +539,7 @@ def _generate_findings(
         sent_words = _word_tokenize(sent)
 
         # Check AI vocabulary (lemmatized to catch inflections)
-        ai_words_found = [w for w in sent_words if _resolve_lemma(w, spacy_lemmas) in ALL_AI_WORDS]
+        ai_words_found = [w for w in sent_words if _lexicon_hit(w, spacy_lemmas, ALL_AI_WORDS)]
         if ai_words_found:
             issues.append(
                 f"AI-overused words: {', '.join(ai_words_found)} "
@@ -333,8 +548,9 @@ def _generate_findings(
 
         # Check AI phrases
         sent_lower = sent.lower()
+        matched_phrases = set(AI_PHRASE_RE.findall(sent_lower))
         for phrase in AI_PHRASES:
-            if phrase in sent_lower:
+            if phrase in matched_phrases:
                 issues.append(f"AI-typical phrase: \"{phrase}\"")
 
         # Check passive voice
@@ -370,6 +586,45 @@ def _generate_findings(
                 )
                 break
 
+        # Model-era signature markers (occurrence-based, not density-based)
+        for label, pattern in SIGNATURE_MARKER_RES.items():
+            if pattern.search(sent):
+                issues.append(
+                    f"Signature LLM marker: \"{label}\" "
+                    f"(claude-code#53454 frequency data)"
+                )
+
+        # Negation-then-correction frames
+        for hit in _match_labels(sent, NEGATIVE_PARALLELISM_RES):
+            issues.append(f"Negative parallelism: \"{hit}\" — state the positive claim")
+            break
+
+        # Validation openers (RLHF sycophancy artifact, arXiv:2310.13548).
+        # Markdown decoration is stripped so list items and bold text still
+        # hit the sentence-start anchors.
+        sent_anchor = MARKDOWN_PREFIX_RE.sub("", sent_stripped)
+        for hit in _match_labels(sent_anchor, SYCOPHANCY_RES):
+            issues.append(f"Sycophantic opener: \"{hit}\" — cut it and answer")
+            break
+
+        # Metadiscourse preamble (Hyland frame markers)
+        for hit in _match_labels(sent, THROAT_CLEARING_RES):
+            issues.append(f"Throat-clearing: \"{hit}\" — state the point directly")
+            break
+
+        # Tier-2 words are too common to flag alone; only when clustered
+        # with another signal in the same sentence.
+        if issues:
+            tier2_found = [
+                w for w in sent_words
+                if _lexicon_hit(w, spacy_lemmas, AI_TIER2_WORDS)
+            ]
+            if tier2_found:
+                issues.append(
+                    f"Tier-2 AI words clustered with other signals: "
+                    f"{', '.join(sorted(set(tier2_found)))}"
+                )
+
         if issues:
             findings.append({
                 "line": idx + 1,
@@ -395,6 +650,13 @@ def analyze_text(text: str) -> dict:
             "hapax_ratio": None,
             "yules_k": None,
             "contraction_rate": 0,
+            "signature_markers": {},
+            "tier2_density": 0,
+            "kobak_common10_density": 0,
+            "em_dash_count": 0,
+            "syntactic_templates": None,
+            "syntactic_templates_unavailable_reason": None,
+            "mtld": None,
             "findings": [],
         }
 
@@ -418,6 +680,18 @@ def analyze_text(text: str) -> dict:
         "hapax_ratio": _compute_hapax_ratio(words),
         "yules_k": _compute_yules_k(words),
         "contraction_rate": _compute_contraction_rate(text, sentences),
+        "signature_markers": _detect_signature_markers(text),
+        "tier2_density": _compute_lexicon_density(words, AI_TIER2_WORDS, spacy_lemmas),
+        "kobak_common10_density": _compute_lexicon_density(
+            words, KOBAK_COMMON_10, spacy_lemmas
+        ),
+        "em_dash_count": text.count(EM_DASH),
+        "syntactic_templates": _compute_syntactic_templates(
+            spacy_data["pos_tags"], HAS_SPACY
+        ),
+        "syntactic_templates_unavailable_reason": (
+            None if HAS_SPACY else "spacy-unavailable"
+        ),
         "sentence_length_mean": round(statistics.mean(sentence_lengths), 2) if sentence_lengths else 0,
         "sentence_length_stdev": round(statistics.stdev(sentence_lengths), 2) if len(sentence_lengths) >= 2 else 0,
         "sentence_length_min": min(sentence_lengths) if sentence_lengths else 0,
@@ -484,6 +758,33 @@ def _format_human(result: dict) -> str:
     cr = result.get("contraction_rate", 0)
     cr_note = " (formal/AI-like)" if cr == 0 and result["sentence_count"] > 3 else ""
     lines.append(f"Contraction rate:    {cr:.2f}/sentence{cr_note}")
+
+    t2 = result.get("tier2_density", 0)
+    lines.append(f"Tier-2 density:      {t2:.1f}/1000 words (flagged only in clusters)")
+
+    c10 = result.get("kobak_common10_density", 0)
+    c10_flag = " ⚠ Kobak common-10 cluster" if c10 > 20 else ""
+    lines.append(f"Kobak common-10:     {c10:.1f}/1000 words{c10_flag}")
+
+    em = result.get("em_dash_count", 0)
+    em_note = " (house style: remove)" if em else ""
+    lines.append(f"Em dashes:           {em}{em_note}")
+
+    templates = result.get("syntactic_templates")
+    if templates is not None:
+        tr = templates["template_rate"]
+        lines.append(
+            f"Template rate:       {tr:.3f} "
+            f"({templates['pos_token_count']} POS tokens; rises with length, "
+            f"compare like-sized texts only)"
+        )
+    elif result.get("syntactic_templates_unavailable_reason"):
+        lines.append("Template rate:       n/a (spaCy unavailable)")
+
+    markers = result.get("signature_markers") or {}
+    if markers:
+        rendered = ", ".join(f"{k}×{v}" for k, v in sorted(markers.items()))
+        lines.append(f"Signature markers:   {rendered}")
 
     lines.append("")
 

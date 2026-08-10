@@ -133,6 +133,32 @@ Wh- openers become a crutch. "What makes this hard is..." becomes "The constrain
 | Lazy extremes (every, always, never, everyone, everybody, nobody) | False authority. Use specifics instead of sweeping claims. |
 | All adverbs (-ly words, "really," "just," "literally," "genuinely," "honestly," "simply," "actually") | Empty emphasis. See phrases.md for full list. |
 
+## Sycophantic Openers
+
+Agreement before content. A measured artifact of preference tuning: reward models favour responses that match the user's stated view ([arXiv:2310.13548](https://arxiv.org/abs/2310.13548)).
+
+| Pattern | Problem |
+|---------|---------|
+| "You're absolutely right, ..." | Validation before information |
+| "You're right to call that out." | Praises the question instead of answering it |
+| "Great question!" | Filler; the question needs an answer, not a rating |
+| "That's a sharp insight." | Flattery dressed as analysis |
+
+**Instead:** answer. If the user was right, the corrected answer already shows it.
+
+## Throat-Clearing Preamble
+
+Metadiscourse announcing that content is coming. LLM text skews toward interactive metadiscourse (transitions, frame markers) and away from genuine stance (Jiang & Hyland, *ESP* 2025).
+
+| Pattern | Problem |
+|---------|---------|
+| "Let me be honest," | Implies the rest was not |
+| "I need to be brutally honest with you here." | Manufactured gravity |
+| "To be clear," | Usually precedes the first clear thing said || "Here's the thing:" | Pure runway |
+| "Let's unpack this." | Announces analysis instead of doing it |
+
+**Instead:** state the point. Delete the runway.
+
 ## Hedge Stacking
 
 Two or more hedges within a short window (1–2 sentences). AI text hedges compulsively because it's trained to avoid definitive claims. Humans commit.

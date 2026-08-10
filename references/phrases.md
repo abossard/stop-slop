@@ -242,6 +242,27 @@ Ten words whose combined frequency strongly predicts LLM-assisted text (Kobak et
 
 **Rule:** Three or more of these in a paragraph warrants a rewrite. Two is a soft signal. Each one individually is fine.
 
+### Model-Era Signature Markers
+
+Tics specific to recent model versions. Too rare for density metrics to catch, but highly diagnostic when they appear. `tools/analyze.py` counts these by occurrence.
+
+| Marker | Evidence |
+|--------|----------|
+| load-bearing | 19.5 hits/100k words on Opus 5; 0.5 → 12.0 per ~500 messages from Opus 4.6 → 4.7 |
+| honest take / the honest truth | Reported alongside "load-bearing" in the same complaints |
+| that's not nothing | Recurring validation filler |
+| sit with that / let's sit with it | Pseudo-therapeutic imperative |
+| doing a lot of work | As in "the title is doing a lot of work there" |
+| structural / load-bearing seams | Paired with "load-bearing" in the same tic family |
+
+Only the metaphorical `seam` counts. Coal seams, weld seams, sewing seams and seam carving are ordinary nouns, so the marker requires a collocation such as "load-bearing seams" or "seams of the argument".
+
+The word choice is bleached rather than meaningful. One reported output: "they weren't the load-bearing characters of the paper because they weren't the load-bearing characters of the assay." Another self-corrects mid-sentence: "the feature is load-bearing—sorry, important."
+
+Prohibiting the word only dampens it: "strong prohibition... reduces the rate... but I still see it once or twice a day."
+
+Sources: [claude-code#53454](https://github.com/anthropics/claude-code/issues/53454), [r/ClaudeAI](https://www.reddit.com/r/ClaudeAI/comments/1tob6q5/that_is_loadbearing/), [jola.dev](https://jola.dev/posts/how-to-stop-claude-from-saying-load-bearing).
+
 ### AI-Typical Sentence Starters
 
 Sentences beginning with formal transition connectors are disproportionately common in AI text (Przystalski et al. 2025, arXiv:2507.00838).

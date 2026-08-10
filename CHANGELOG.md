@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-08-10
+
+### Added
+- **Signature markers** in `tools/analyze.py`: occurrence-counted detection of model-era tics (`load-bearing`, `honest take`, `not nothing`, `sit with that`, `doing a lot of work`, `seam`). Counted by occurrence rather than density because the measured rate (19.5 hits/100k words on Opus 5) sits far below the 10/1000 density threshold.
+- **Structural detectors**: negative parallelism (`it's not X, it's Y`), sycophantic openers (`You're absolutely right`), and throat-clearing metadiscourse (`Let me be honest`). Each ships with negative-control tests so ordinary negation and ordinary second-person sentences stay unflagged.
+- **`syntactic_templates`** metric: POS n-gram template repetition for n in 4..8, following Shaib et al. 2024 (arXiv:2407.00211). Reported without a threshold, since the rate climbs with document length rather than measuring templating alone. `None` below 100 POS tokens or when spaCy is unavailable, with `syntactic_templates_unavailable_reason` distinguishing the two.
+- **`kobak_common10_density`**, **`tier2_density`**, and **`em_dash_count`** metrics.
+- `references/phrases.md`: model-era signature marker section.
+- `references/structures.md`: sycophantic openers and throat-clearing preamble sections. Negative parallelism was already covered under "Binary Contrasts"; it is now machine-checked.
+
+### Fixed
+- `AI_TIER2_WORDS` and `KOBAK_COMMON_10` were defined but never read. Tier-2 words now raise an issue when clustered with another signal in the same sentence, and the common-10 set has its own density metric.
+- Lexicon lookups no longer trust spaCy's lemma alone. In `The comprehensive review delves into crucial insights.`, spaCy tags `delves` as a noun and lemmatizes it to `delf`, silently dropping a tier-1 word. A lexicon miss now retries with suffix stripping.
+
+### Changed
+- Phrase matching uses one precompiled alternation instead of one regex scan per phrase. Equivalence verified across 3,000 randomized inputs. Per-call cost is unchanged within measurement noise; the change removes an O(phrases × text) scan that would have grown with the lexicon.
+
 ## 2026-06-01
 
 ### Added

@@ -78,9 +78,70 @@ PASSIVE_TEXT = (
     "The bug was discovered during testing. "
 )
 
+# Non-repeating human prose, long enough for stable template rates (C8).
+# VARIED_SENTENCES * 3 would repeat verbatim and score ~1.0 templated,
+# which would make the comparison vacuous.
+VARIED_LONG_TEXT = HUMAN_TEXT + " " + VARIED_SENTENCES
+
 SINGLE_SENTENCE = "Hello world."
 EMPTY_TEXT = ""
 WHITESPACE_TEXT = "   \n\n  \t  "
+
+# Every signature marker from the model-era tic family (C1)
+SIGNATURE_TEXT = (
+    "That constraint is load-bearing for the whole design. "
+    "The load bearing wall analogy keeps coming up. "
+    "My honest take is that the migration slipped a week. "
+    "You caught the regression, and that is not nothing. "
+    "Sit with that for a moment before you reply. "
+    "The word critical there is doing a lot of work. "
+    "The structural seams of the abstraction are undocumented. "
+)
+
+# One marker buried in ~780 filler words: density stays far under 10/1000 (C2)
+RARE_MARKER_TEXT = (
+    "The team met on Tuesday and moved the task to the next column. " * 60
+    + "That retry check is load-bearing."
+)
+
+# Tier-2 words with no other signal present (C6)
+TIER2_ONLY_TEXT = "The comprehensive review gave us crucial insights this week."
+
+# Tier-2 words sharing a sentence with a tier-1 word (C6)
+TIER2_WITH_SIGNAL_TEXT = "The comprehensive review delves into crucial insights."
+
+# Five of the Kobak common-10 words (C7)
+COMMON10_TEXT = (
+    "Additionally the comprehensive study exhibited crucial insights within scope."
+)
+
+# Exactly two em dashes (C10)
+EM_DASH_TEXT = "The build broke — twice — before lunch."
+
+# Same clause skeleton repeated: high POS n-gram template rate (C8)
+TEMPLATED_TEXT = (
+    "The system processes the input data quickly. "
+    "The module handles the output stream quickly. "
+    "The server manages the client request quickly. "
+    "The function returns the final result quickly. "
+    "The program validates the user input quickly. "
+    "The service monitors the active state quickly. "
+    "The worker collects the pending message quickly. "
+    "The router forwards the inbound packet quickly. "
+)
+
+# Structurally repeated but NOT verbatim-duplicated. TEMPLATED_TEXT * 2 would
+# score exactly 1.0 through duplication alone, proving nothing (C8).
+TEMPLATED_LONG_TEXT = TEMPLATED_TEXT + (
+    "The handler accepts the queued payload quickly. "
+    "The parser rejects the malformed header quickly. "
+    "The client retries the failed upload quickly. "
+    "The daemon reloads the changed config quickly. "
+    "The broker drops the expired session quickly. "
+    "The agent reports the current status quickly. "
+    "The filter removes the duplicate record quickly. "
+    "The cache evicts the coldest entry quickly. "
+)
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +388,251 @@ class TestSentenceStarters:
         )
 
 
+def _issues_of(result: dict) -> list[str]:
+    """Flatten every issue string across all findings."""
+    return [issue for f in result["findings"] for issue in f["issues"]]
+
+
+class TestSignatureMarkers:
+    """C1/C2 — model-era tics are counted by occurrence, not by density."""
+
+    def test_signature_markers_all_detected(self, analyze_module):
+        result = analyze_module.analyze_text(SIGNATURE_TEXT)
+        markers = result["signature_markers"]
+        expected = {
+            "load-bearing", "honest take", "not nothing",
+            "sit with that", "doing a lot of work", "seam",
+        }
+        assert expected <= set(markers), f"Missing: {expected - set(markers)}"
+        assert all(markers[m] >= 1 for m in expected), markers
+        assert markers["load-bearing"] == 2, "both spellings must count"
+
+    def test_rare_marker_survives_density_floor(self, analyze_module):
+        result = analyze_module.analyze_text(RARE_MARKER_TEXT)
+        assert result["word_count"] > 600, result["word_count"]
+        assert result["ai_vocabulary_density"] < 10, (
+            "premise broken: density must stay under the flag threshold, "
+            f"got {result['ai_vocabulary_density']}"
+        )
+        assert result["signature_markers"].get("load-bearing") == 1
+        assert any("load-bearing" in i for i in _issues_of(result)), (
+            "single rare marker must still produce a per-sentence finding"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "The coal seam runs beneath the valley for three kilometres.",
+        "Seam carving is a content-aware image resizing algorithm.",
+        "She reinforced the seam with a double stitch.",
+        "Check the weld seam for porosity before shipping.",
+    ])
+    def test_literal_domain_nouns_not_flagged(self, analyze_module, sentence):
+        """`seam` is an ordinary noun in geology, imaging, sewing and welding."""
+        result = analyze_module.analyze_text(sentence)
+        assert result["signature_markers"] == {}, (
+            f"false positive on: {sentence!r} -> {result['signature_markers']}"
+        )
+
+    def test_metaphorical_seam_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(
+            "The load-bearing seams of the design are undocumented."
+        )
+        assert result["signature_markers"].get("seam") == 1
+
+    def test_clean_text_has_no_markers(self, analyze_module):
+        result = analyze_module.analyze_text(HUMAN_TEXT)
+        assert result["signature_markers"] == {}
+
+
+class TestNegativeParallelism:
+    """C3 — negation-then-correction frames, without flagging plain negation."""
+
+    @pytest.mark.parametrize("sentence", [
+        "It's not a caching problem, it's a schema problem.",
+        "The bottleneck isn't the disk, it's the lock contention.",
+        "This is not just a refactor but a rewrite.",
+        "It is not only slower but also harder to read.",
+        "You spotted the leak, and that's not nothing.",
+        "That is not a bug but a missing guard.",
+    ])
+    def test_constructions_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any("Negative parallelism" in i for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "I did not fix it yesterday.",
+        "The cache is not enabled on staging.",
+        # Concessive "but": a new clause, not an alternative predicate.
+        "The build is not reproducible but we ship it anyway.",
+    ])
+    def test_plain_negation_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any("Negative parallelism" in i for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+
+class TestSycophancy:
+    """C4 — validation openers, curly and straight apostrophes alike."""
+
+    @pytest.mark.parametrize("sentence", [
+        "You're absolutely right, the migration order was wrong.",
+        "You\u2019re absolutely right, the migration order was wrong.",
+        "You are absolutely right, the migration order was wrong.",
+        "You're right to call that out.",
+        "Great question! The retry budget is per-host.",
+        "That's a sharp insight about the queue depth.",
+    ])
+    def test_openers_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any("Sycophantic opener" in i for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "You right-shifted the deploy window by an hour.",
+        "You will need the admin token for that endpoint.",
+        # "right to left" is a direction, not a speech act.
+        "You're right to left of the divider.",
+    ])
+    def test_ordinary_second_person_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any("Sycophantic opener" in i for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "- You're absolutely right, the migration order was wrong.",
+        "> You're absolutely right about that.",
+        "**You're absolutely right**, the order was wrong.",
+    ])
+    def test_markdown_decorated_openers_flagged(self, analyze_module, sentence):
+        """The consuming skill lints markdown, where openers carry list and
+        emphasis prefixes."""
+        result = analyze_module.analyze_text(sentence)
+        assert any("Sycophantic opener" in i for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+
+class TestThroatClearing:
+    """C5 — metadiscourse preamble before the actual content."""
+
+    @pytest.mark.parametrize("sentence", [
+        "Let me be honest, the index was never used.",
+        "To be clear, the job runs hourly.",
+        "Here's the thing: the worker never acked.",
+        "Let's unpack why the retry loop stalled.",
+        "I need to be brutally honest about the timeline.",
+    ])
+    def test_preambles_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any("Throat-clearing" in i for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "The index was never used.",
+        "I want to be clear-headed about this.",
+        "To be fair to him, the spec was ambiguous.",
+        "We need to be fair in the scheduling algorithm.",
+        "The queue is designed to be fair.",
+    ])
+    def test_ordinary_use_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any("Throat-clearing" in i for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+
+class TestTier2CoOccurrence:
+    """C6 — tier-2 words are too common to flag alone."""
+
+    def test_tier2_alone_not_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(TIER2_ONLY_TEXT)
+        assert result["tier2_density"] > 0, "metric must still count them"
+        assert not any("Tier-2" in i for i in _issues_of(result)), (
+            "tier-2 words alone must not raise an issue"
+        )
+
+    def test_tier2_with_other_signal_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(TIER2_WITH_SIGNAL_TEXT)
+        assert any("Tier-2" in i for i in _issues_of(result)), (
+            "tier-2 words must be flagged when clustered with another signal"
+        )
+
+
+class TestCommon10Density:
+    """C7 — the Kobak common-10 set gets its own density metric."""
+
+    def test_common10_density_reported(self, analyze_module):
+        result = analyze_module.analyze_text(COMMON10_TEXT)
+        assert result["kobak_common10_density"] > 0, result["kobak_common10_density"]
+
+    def test_common10_absent_in_plain_text(self, analyze_module):
+        result = analyze_module.analyze_text("The build broke at noon.")
+        assert result["kobak_common10_density"] == 0
+
+
+class TestEmDash:
+    """C10 — house-style count, reported without an AI-like threshold."""
+
+    def test_em_dash_counted(self, analyze_module):
+        result = analyze_module.analyze_text(EM_DASH_TEXT)
+        assert result["em_dash_count"] == 2
+
+    def test_no_em_dash(self, analyze_module):
+        result = analyze_module.analyze_text("The build broke at noon.")
+        assert result["em_dash_count"] == 0
+
+
+class TestSyntacticTemplates:
+    """C8/C9 — POS n-gram templates (Shaib et al. arXiv:2407.00211)."""
+
+    def test_templated_text_scores_higher_than_varied(self, analyze_module):
+        if not analyze_module.HAS_SPACY:
+            pytest.skip("spaCy not available")
+        templated = analyze_module.analyze_text(TEMPLATED_LONG_TEXT)
+        varied = analyze_module.analyze_text(VARIED_LONG_TEXT)
+        assert templated["syntactic_templates"] is not None
+        assert varied["syntactic_templates"] is not None
+        assert (
+            templated["syntactic_templates"]["template_rate"]
+            > varied["syntactic_templates"]["template_rate"]
+        ), (
+            f"templated={templated['syntactic_templates']['template_rate']} "
+            f"varied={varied['syntactic_templates']['template_rate']}"
+        )
+
+    def test_no_duplicate_sentences_in_templated_fixture(self):
+        """Guard: the fixture must not prove itself by verbatim repetition."""
+        sentences = [s.strip() for s in TEMPLATED_LONG_TEXT.split(".") if s.strip()]
+        assert len(sentences) == len(set(sentences)), "fixture repeats verbatim"
+
+    def test_template_short_text_is_none(self, analyze_module):
+        result = analyze_module.analyze_text(SINGLE_SENTENCE)
+        assert result["syntactic_templates"] is None
+
+
+class TestSpacySinglePass:
+    """C13 — one spaCy invocation per analyzed input."""
+
+    def test_spacy_single_pass(self, analyze_module, monkeypatch):
+        if not analyze_module.HAS_SPACY:
+            pytest.skip("spaCy not available")
+        calls = {"n": 0}
+        real = analyze_module._nlp
+
+        def counting(text):
+            calls["n"] += 1
+            return real(text)
+
+        monkeypatch.setattr(analyze_module, "_nlp", counting)
+        analyze_module.analyze_text(AI_TEXT)
+        assert calls["n"] == 1, f"expected 1 spaCy call, got {calls['n']}"
+
+
 # ---------------------------------------------------------------------------
 # CLI integration tests
 # ---------------------------------------------------------------------------
@@ -344,7 +650,10 @@ class TestCLI:
         expected_keys = {"burstiness", "ttr", "ai_vocabulary_density",
                          "passive_voice_rate", "flesch_kincaid_grade",
                          "sentence_count", "word_count", "findings",
-                         "hapax_ratio", "yules_k", "contraction_rate"}
+                         "hapax_ratio", "yules_k", "contraction_rate",
+                         "signature_markers", "tier2_density",
+                         "kobak_common10_density", "em_dash_count",
+                         "syntactic_templates"}
         assert expected_keys.issubset(data.keys()), f"Missing keys: {expected_keys - data.keys()}"
 
     def test_file_input(self, tmp_path):
@@ -435,6 +744,11 @@ class TestWrapper:
         assert "burstiness" in data
         assert "findings" in data
         assert data["word_count"] > 0
+        # C11 names tools/slopometer as the boundary, so the new keys must be
+        # asserted here and not only through analyze.py directly.
+        new_keys = {"signature_markers", "tier2_density", "kobak_common10_density",
+                    "em_dash_count", "syntactic_templates"}
+        assert new_keys.issubset(data.keys()), f"missing: {new_keys - data.keys()}"
 
 
 def test_wrapper_no_runners_exits_nonzero(tmp_path):

@@ -126,6 +126,48 @@ The wrapper writes `runner=uv` or `runner=python3` to stderr so callers can veri
 | Hapax ratio (words appearing once / unique) | < 0.58 | > 0.60 | Opara 2024 (top-4); multi_detector.py |
 | Yule's K (vocabulary repetition) | > 100 | < 100 | Retengart; multi_detector.py |
 | Contraction rate (per sentence) | 0 | > 0 | Opara 2024 (formality signal) |
+| Signature markers (raw count) | any occurrence | 0 | claude-code#53454 frequency data |
+| Kobak common-10 density | > 20/1000 | < 20/1000 | Kobak et al. 2025 (Δcommon=0.134) |
+| Template rate (repeated POS n-grams) | n/a | n/a | Shaib et al. 2024, arXiv:2407.00211 |
+| Tier-2 density | context-dependent | n/a | flagged only when clustered |
+| Em dash count | n/a | n/a | house style (`references/structures.md`) |
+
+`template_rate` is reported without a threshold. It is **not length-invariant**:
+on one human-written corpus it measured 0.13 at 150 words and 0.61 at 28,000
+words, because longer texts give every POS n-gram more chances to recur. Compare
+it only between texts of similar length. `pos_token_count` is reported alongside
+it so you can tell whether two numbers are comparable.
+
+### Signature markers
+
+Some tells are too rare for a density metric to catch. Anthropic's own issue
+tracker measured `load-bearing` at **19.5 hits per 100k words** on Opus 5,
+roughly 0.2 per 1000 words, when the AI-vocabulary flag needs 10 per 1000. The
+same data shows it is a version regression, not a constant: 0.5 per 525
+messages on Opus 4.6 against 12.0 on Opus 4.7.
+
+So these markers are counted by occurrence and reported whenever they appear:
+`load-bearing`, `honest take`, `not nothing`, `sit with that`,
+`doing a lot of work`, `seam`.
+
+The tool also flags three structural tells behind them: negation-then-correction
+frames (`it's not X, it's Y`), sycophantic openers (`You're absolutely right`),
+and throat-clearing preambles (`Let me be honest`).
+
+Sources: [claude-code#53454](https://github.com/anthropics/claude-code/issues/53454),
+[r/ClaudeAI](https://www.reddit.com/r/ClaudeAI/comments/1tob6q5/that_is_loadbearing/),
+[jola.dev](https://jola.dev/posts/how-to-stop-claude-from-saying-load-bearing),
+[Wikipedia:Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing).
+
+### Why LLM prose reads this way
+
+Three separate causes, not one:
+
+- **Reward models track length.** A purely length-based reward reproduces most downstream RLHF gains ([arXiv:2310.03716](https://arxiv.org/abs/2310.03716)), which favours preamble and caveats over direct answers.
+- **RLHF collapses diversity.** It "significantly reduces output diversity compared to SFT" ([arXiv:2310.06452](https://arxiv.org/abs/2310.06452)).
+- **Templates predate alignment.** 76% of templates in model output trace back to pretraining data and "are not overwritten during fine-tuning or alignment processes such as RLHF" ([arXiv:2407.00211](https://arxiv.org/abs/2407.00211)).
+
+Sycophantic openers are a measured artifact too: preference models favour responses matching the user's view ([arXiv:2310.13548](https://arxiv.org/abs/2310.13548)).
 
 ### Example output
 
