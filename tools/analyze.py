@@ -241,14 +241,11 @@ THROAT_CLEARING_RES = [
     re.compile(r"\bi will give it to you straight\b", re.IGNORECASE),
 ]
 
-# Importance-inflation frames built on "decisive"/"decisively".
-# Wikipedia:Signs_of_AI_writing documents the move — "a crucial/pivotal/vital
-# role/moment", "key turning point" — where an arbitrary fact is upgraded into
-# a turning point. "decisive" performs the same upgrade for causation and is
-# absent from the Kobak et al. excess-vocabulary list, so it gets no density
-# treatment: the bare adjective is ordinary in military, sports and election
-# prose ("a decisive victory", "she is decisive under pressure"). Only the
-# verdict, role, turning-point and call-to-action collocations are matched.
+# Importance-inflation frames built on "decisive"/"decisively", where an
+# ordinary fact is upgraded into a turning point. Matched as collocations
+# because the bare adjective is ordinary in military, sports and election
+# prose ("a decisive victory"). See references/phrases.md for the frame list,
+# the rewrites and the sources.
 DECISIVENESS_RES = [
     re.compile(r"\b(?:prove[sd]?|proven|proving)\s+(?:to be\s+)?decisive\b",
                re.IGNORECASE),
