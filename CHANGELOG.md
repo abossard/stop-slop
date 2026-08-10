@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-11
+
+### Added
+- **Importance inflation via "decisive"** in `tools/analyze.py`: collocation-level detection of `proved decisive`, `was decisive in`, `played a decisive role`, `the decisive factor/moment/shift/step/turning point/advantage/edge/break`, `decisive action`, and `act/move/respond/intervene/lead decisively`. `decisive`, `decisively` and `decisiveness` join `AI_TIER2_WORDS`.
+- `references/phrases.md`: "Importance Inflation: decisive" section with rewrite guidance.
+
+`decisive` is absent from the Kobak et al. excess-vocabulary list and has no published AI/human frequency ratio, and it is ordinary in military, sports, election and character writing ("won a decisive victory", "she is decisive under pressure"). It is therefore matched by frame rather than by word, with negative-control tests for the ordinary senses.
+
 ## 2026-08-10
 
 ### Added

@@ -93,6 +93,7 @@ AI_TIER2_WORDS = {
     "robust", "valuable", "vibrant", "enduring", "garner", "boast",
     "align", "emphasize", "enhance", "highlight", "key", "profound",
     "renowned", "exemplify", "seamless",
+    "decisive", "decisively", "decisiveness",
 }
 
 AI_TRANSITIONS = {
@@ -238,6 +239,34 @@ THROAT_CLEARING_RES = [
     re.compile(rf"\blet{_APO}s unpack\b", re.IGNORECASE),
     re.compile(rf"\bi{_APO}ll be honest\b", re.IGNORECASE),
     re.compile(r"\bi will give it to you straight\b", re.IGNORECASE),
+]
+
+# Importance-inflation frames built on "decisive"/"decisively".
+# Wikipedia:Signs_of_AI_writing documents the move — "a crucial/pivotal/vital
+# role/moment", "key turning point" — where an arbitrary fact is upgraded into
+# a turning point. "decisive" performs the same upgrade for causation and is
+# absent from the Kobak et al. excess-vocabulary list, so it gets no density
+# treatment: the bare adjective is ordinary in military, sports and election
+# prose ("a decisive victory", "she is decisive under pressure"). Only the
+# verdict, role, turning-point and call-to-action collocations are matched.
+DECISIVENESS_RES = [
+    re.compile(r"\b(?:prove[sd]?|proven|proving)\s+(?:to be\s+)?decisive\b",
+               re.IGNORECASE),
+    re.compile(r"\b(?:is|are|was|were)\s+decisive\s+in\b", re.IGNORECASE),
+    re.compile(r"\bplay(?:s|ed|ing)?\s+(?:a|the)\s+decisive\s+role\b",
+               re.IGNORECASE),
+    re.compile(
+        r"\b(?:a|the|this|that|its)\s+decisive\s+"
+        r"(?:factor|moment|shift|step|turning\s+point|advantage|edge|break)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bdecisive\s+action\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:acts?|acted|acting|moves?|moved|moving|responds?|responded|"
+        r"responding|intervenes?|intervened|intervening|leads?|led|leading)"
+        r"\s+decisively\b",
+        re.IGNORECASE,
+    ),
 ]
 
 EM_DASH = "\u2014"
@@ -610,6 +639,13 @@ def _generate_findings(
         # Metadiscourse preamble (Hyland frame markers)
         for hit in _match_labels(sent, THROAT_CLEARING_RES):
             issues.append(f"Throat-clearing: \"{hit}\" — state the point directly")
+            break
+
+        # Importance inflation via "decisive" (Wikipedia:Signs_of_AI_writing)
+        for hit in _match_labels(sent, DECISIVENESS_RES):
+            issues.append(
+                f"Importance inflation: \"{hit}\" — name what actually changed"
+            )
             break
 
         # Tier-2 words are too common to flag alone; only when clustered
