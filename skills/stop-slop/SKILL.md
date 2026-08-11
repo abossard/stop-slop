@@ -61,7 +61,9 @@ Before delivering prose:
 - Sentence ends in ", not merely X" or ", not just Y"? Cut the tail.
 - "Load-bearing," "decisive," "the crux," "not optional"? Replace with the consequence.
 - "Deliberately," "intentionally," "by design"? Every choice was. State the mechanism.
-- Adverb asserting you checked ("exactly," "actually," "correctly," "cleanly," "silently")? Delete it.
+- Adverb asserting you checked ("exactly," "actually," "correctly," "cleanly")? Delete it.
+- "Silently"? Only if you checked for the log line, the warning and the exit code. Otherwise drop it.
+- Telling the reader something doesn't matter ("inert," "no-op," "cosmetic," "harmless," "dead code")? Say what reads it.
 - Bold phrase followed by an em-dash? Split into two sentences, drop the bold.
 - Paragraph opens with a bold label and a colon? Prose doesn't need field names.
 - Two or more parentheticals in one sentence? Move the evidence to the end.

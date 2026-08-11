@@ -149,6 +149,24 @@ Words that assert a thing matters without saying why.
 
 **Fix:** name the consequence. "Deleting this breaks C24" beats "this is load-bearing for C24."
 
+### Unimportance Labels
+
+The same move aimed the other way. These words tell the reader a thing does not matter, so they need not check it. More common than the load-bearing family, and harder to spot because it reads as reassurance.
+
+| Word | Chat | Blueprint | Problem |
+|------|-----:|----------:|---------|
+| no-op | 141 | 105 | Often means "I did not trace the callers" |
+| cosmetic | 130 | 18 | A rendering change is still a change |
+| dead code | 119 | 15 | Prove it with a caller search, not an adjective |
+| harmless | 95 | 30 | Harmless under which inputs? |
+| inert | 40 | 46 | Borrowed from chemistry to sound settled |
+| benign | 29 | 10 | Same |
+| decorative | 13 | 14 | Usually paired with "not decorative" elsewhere |
+| purely additive | 12 | 8 | Additive to what, checked how? |
+| vestigial | 8 | 0 | Ornamental word for "unused" |
+
+**Fix:** state what the thing does and what reads it. "Nothing reads these fields" beats "the fields are inert there." If you did not check who reads them, say that instead.
+
 ### Assertion Adverbs
 
 Adverbs that assert the writer checked something. They carry no information about what was checked.
@@ -158,13 +176,31 @@ Adverbs that assert the writer checked something. They carry no information abou
 | exactly | 1060 | "asserts exactly N" → "asserts N" |
 | actually | 743 | Implies the surrounding text was hypothetical |
 | correctly | 572 | If it were incorrect you'd say so |
-| silently | 370 | Only meaningful when contrasted with a logged failure |
 | cleanly | 235 | Aesthetic claim posing as a test result |
 | genuinely | 178 | Doubles down on a claim already made |
 | precisely | 38 | Same as "exactly" |
 | properly / strictly / explicitly | — | Same family |
 
 **Fix:** delete the adverb. If the sentence weakens, the missing information was never in the adverb.
+
+### "Silently"
+
+371 uses in chat and 309 in blueprints. It turns a plain fact into a hazard warning. "The parser drops unknown fields" becomes "the parser silently drops unknown fields," and the sentence now implies the writer looked for a log line, a warning and a non-zero exit code, and found none. That check is rarely done.
+
+Most frequent collocations across both corpora:
+
+| Phrase | Count |
+|--------|------:|
+| silently dropped / drops / drop | 55 |
+| silently fails / fail / failing | 25 |
+| silently ignored | 23 |
+| silently break / breaks | 20 |
+| silently truncates | 7 |
+| silently overwritten | 6 |
+
+`gracefully` (56), `implicitly` (42), `quietly` (29) and `transparently` (17) do the same job.
+
+**Fix:** keep the adverb only when you checked the visible alternative and can name it. "Drops unknown fields with no warning and exit code 0" reports a check. "Silently drops unknown fields" reports a guess. When you did not check, write "drops unknown fields" and let the sentence be about the drop.
 
 ### Deliberateness Signalling
 
