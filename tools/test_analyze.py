@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 import textwrap
+import time
 from pathlib import Path
 
 import pytest
@@ -477,6 +478,61 @@ class TestNegativeParallelism:
         assert not any("Negative parallelism" in i for i in _issues_of(result)), (
             f"false positive on: {sentence!r}"
         )
+
+
+class TestDefensiveNegation:
+    """Defensive tails that deny a weaker claim the reader never made."""
+
+    @pytest.mark.parametrize("sentence", [
+        "The test asserts elapsed time, not merely that an error came back.",
+        "The guard must fail on a mutation, not merely succeed on a clean tree.",
+        "It asserts on the engine's produced error, not just a config flag.",
+        "Run the suite against the real API, not only the recorded fixtures.",
+        "The assertions are load-bearing, not decorative.",
+        "This is a required implementation detail, not an optional nicety.",
+    ])
+    def test_defensive_tails_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any("Defensive negation" in i for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        # Restrictive negation with no trailing comma frame.
+        "The runner does not merely warn on a failed gate.",
+        "We did not just ship it without review.",
+        # Resolves into "but", so negative parallelism owns this one.
+        "This is not just a refactor, but a rewrite.",
+        "The queue drains slowly, not because of the disk.",
+    ])
+    def test_non_defensive_negation_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any("Defensive negation" in i for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+    def test_one_negation_frame_yields_one_issue(self, analyze_module):
+        """A sentence both detectors match is reported once.
+
+        ", not just" satisfies the defensive tail and "not just ... but"
+        satisfies negative parallelism. The guard is control flow rather than
+        a lookahead, so it holds regardless of what sits between them.
+        """
+        sentence = "The build passes, not just on my machine, but it's broken in CI."
+        issues = _issues_of(analyze_module.analyze_text(sentence))
+        assert any("Negative parallelism" in i for i in issues), issues
+        assert not any("Defensive negation" in i for i in issues), issues
+
+    def test_pathological_whitespace_completes_promptly(self, analyze_module):
+        """Ambiguous quantifiers over the same run of spaces backtrack.
+
+        Measured at 8.2s for 20k spaces before the article was given its own
+        whitespace, so this fails loudly rather than hanging the caller.
+        """
+        text = "The check is required, not" + " " * 20000 + "optional."
+        start = time.perf_counter()
+        analyze_module.analyze_text(text)
+        assert time.perf_counter() - start < 2.0
 
 
 class TestSycophancy:

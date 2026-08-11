@@ -196,6 +196,30 @@ NEGATIVE_PARALLELISM_RES = [
     ),
 ]
 
+# Defensive negation tails: a finished clause followed by a denial of a weaker
+# claim the reader never made ("asserts elapsed time, not merely that an error
+# came back"). Distinct from NEGATIVE_PARALLELISM_RES, which needs a "but"/"it's"
+# alternative to complete the frame; here the denial stands alone. Sentences
+# already claimed by negative parallelism are skipped in _generate_findings, so
+# a "not X, but Y" frame is reported once. Doing that in control flow rather
+# than a regex lookahead keeps the match independent of embedded periods, which
+# the sentence splitter leaves inside a sentence ("not merely a v3.5 warning").
+DEFENSIVE_NEGATION_RES = [
+    re.compile(
+        r",\s*(?:and\s+)?not\s+(?:merely|just|only|simply)\b",
+        re.IGNORECASE,
+    ),
+    # The optional article owns its trailing whitespace. Writing it as
+    # `(?:a|an|the)?\s*` after `not\s+` lets two quantifiers match the same
+    # spaces, which backtracks quadratically on a long whitespace run
+    # (8.2s on 20k spaces, measured).
+    re.compile(
+        r",\s*not\s+(?:(?:an?|the)\s+)?"
+        r"(?:decorative|optional|cosmetic|throwaway|nicety|smoke test)\b",
+        re.IGNORECASE,
+    ),
+]
+
 # Validation openers. Sycophancy is a documented RLHF artifact: preference
 # models favour responses matching the user's view (arXiv:2310.13548).
 SYCOPHANCY_RES = [
@@ -621,9 +645,20 @@ def _generate_findings(
                 )
 
         # Negation-then-correction frames
+        claimed_by_parallelism = False
         for hit in _match_labels(sent, NEGATIVE_PARALLELISM_RES):
             issues.append(f"Negative parallelism: \"{hit}\" — state the positive claim")
+            claimed_by_parallelism = True
             break
+
+        # Defensive negation tails, skipped when the sentence is already
+        # reported above so one negation frame yields one issue.
+        if not claimed_by_parallelism:
+            for hit in _match_labels(sent, DEFENSIVE_NEGATION_RES):
+                issues.append(
+                    f"Defensive negation: \"{hit}\" — cut the tail, the claim already stands"
+                )
+                break
 
         # Validation openers (RLHF sycophancy artifact, arXiv:2310.13548).
         # Markdown decoration is stripped so list items and bold text still

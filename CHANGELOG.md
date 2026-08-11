@@ -4,7 +4,19 @@
 
 ### Added
 - **Importance inflation via "decisive"** in `tools/analyze.py`: the verdict, role, turning-point and call-to-action frames listed in `references/phrases.md` are matched as collocations, not as a word, because the bare adjective is ordinary in military, sports and election prose. Ships with negative-control tests. `decisive`, `decisively` and `decisiveness` also join `AI_TIER2_WORDS`.
-- `references/phrases.md`: "Importance Inflation: decisive" section with the frame list and rewrite guidance.
+- **Defensive negation detector** in `tools/analyze.py`: flags a finished clause followed by a denial of a weaker claim nobody made (`asserts elapsed time, not merely that an error came back`; `the assertions are load-bearing, not decorative`). Separate from negative parallelism, which needs a `but`/`it's` alternative to complete the frame; here the denial stands alone. A sentence already reported as negative parallelism is skipped, so one negation frame yields one issue. That guard lives in `_generate_findings` control flow rather than a regex lookahead, because the sentence splitter leaves embedded periods (`v3.5`, `.But`) inside a sentence where a lookahead's `[^.!?]*` scan would stop early.
+- `references/phrases.md`: **Technical-Register Slop** section covering importance labels (`load-bearing`, `decisive`, `the crux`, `not optional`), unimportance labels (`inert`, `no-op`, `cosmetic`, `harmless`, `dead code`), assertion adverbs (`exactly`, `actually`, `correctly`, `cleanly`), `silently` on its own, deliberateness signalling, self-praise adjectives, verdict openers, and sycophantic acknowledgements.
+- `references/structures.md`: negation-as-proof, restatement escalation, em-dash bold clause, bold-label colon, parenthetical proof-stuffing, sentence bloat, self-interrogation, count-and-close, and justification tails.
+- `references/examples.md`: nine before/after pairs (examples 6–14), each quoted verbatim from a single message in the source corpus.
+- `skills/stop-slop/SKILL.md`: three core rules and eleven quick checks for the technical register.
+- Regression tests for two failure modes found in review: a sentence matching both negation detectors is reported once, and pathological whitespace completes in under two seconds.
+
+### Changed
+- Frequency claims are measured over 1.82M words of assistant output (10,369 turns) and 1.02M words of blueprints (265 files), sentence-split with `_split_sentences` from `tools/analyze.py` so the shipped tool reproduces them: 87,261 and 48,739 sentences. Highest-volume tell is the em-dash bold clause at 15.2% of chat sentences.
+- `not merely` / `not just` / `not only` added to the model-era signature marker table. It appears as a comma-framed tail at near-identical rates in both corpora (0.4% of blueprint sentences, 0.2% of chat), so the two are not compared.
+
+### Fixed
+- The second defensive-negation pattern wrote the optional article as `(?:a|an|the)?\s*` after `not\s+`, letting two quantifiers match the same run of spaces. That backtracked quadratically: 8.2s on 20,000 spaces. The article now owns its trailing whitespace, and the same input completes in 0.005s.
 
 ## 2026-08-10
 
