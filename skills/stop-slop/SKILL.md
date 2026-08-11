@@ -26,6 +26,12 @@ Eliminate predictable AI writing patterns from prose.
 
 8. **Cut quotables.** If it sounds like a pull-quote, rewrite it.
 
+9. **Don't argue with the reader.** State what the thing does and stop. No "not merely X," no "not just a smoke test," no "not decorative." The negation tail defends against an objection nobody raised.
+
+10. **Don't label importance, show it.** "Load-bearing," "decisive," "the key insight," "not optional" all mean "this matters" without saying why. Name the consequence instead.
+
+11. **Say it once.** Claim, then aphorism, then importance label states one fact three times. Keep the claim.
+
 ## Quantitative check
 
 Before delivering prose longer than ~100 words, run the slopometer for hard numbers:
@@ -52,6 +58,18 @@ Before delivering prose:
 - Vague declarative ("The implications are significant")? Name the specific implication.
 - Narrator-from-a-distance ("Nobody designed this")? Put the reader in the scene.
 - Meta-joiners ("The rest of this essay...")? Delete. Let the essay move.
+- Sentence ends in ", not merely X" or ", not just Y"? Cut the tail.
+- "Load-bearing," "decisive," "the crux," "not optional"? Replace with the consequence.
+- "Deliberately," "intentionally," "by design"? Every choice was. State the mechanism.
+- Adverb asserting you checked ("exactly," "actually," "correctly," "cleanly," "silently")? Delete it.
+- Bold phrase followed by an em-dash? Split into two sentences, drop the bold.
+- Paragraph opens with a bold label and a colon? Prose doesn't need field names.
+- Two or more parentheticals in one sentence? Move the evidence to the end.
+- Sentence past 40 words? Find the second verb and start over there.
+- Rating your own work ("clean," "surgical," "robust," "elegant")? Give the number instead.
+- Reply opens with "You're right" or "Good catch"? The correction shows it.
+- Asking yourself a question in quotes before answering it? Delete the question.
+- "Three X, each closed/covered/measured"? Drop the count and the grade, keep the list.
 
 ## 🏆 Wall of Shame
 

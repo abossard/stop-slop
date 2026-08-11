@@ -1,7 +1,7 @@
 {
   "name": "stop-slop",
   "description": "Remove AI writing patterns from prose. Catches banned phrases, structural clichés, rhythm issues, and AI tells.",
-  "version": "1.0.2-abossard",
+  "version": "1.0.3-abossard",
   "author": {
     "name": "Hardik Pandya (forked by abossard)",
     "url": "https://hvpandya.com"

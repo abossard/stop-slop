@@ -190,3 +190,113 @@ AI loves balanced, parallel structures — especially three items where each get
 | Every list has exactly 3 items | Artificial completeness |
 
 **Instead:** Vary list lengths. Give more space to things that deserve it. Two items are fine. One item is fine. Not everything needs a counterpoint.
+
+## Negation-as-Proof
+
+Stating what a thing does, then denying a weaker version nobody proposed. The binary contrast above sets up a reveal; this pattern appends a denial to a sentence that was already complete.
+
+| Pattern | Problem |
+|---------|---------|
+| "asserts bounded elapsed time, not merely that an error came back" | The assertion was already stated. The tail argues with nobody. |
+| "the guard must fail on a mutation, not merely succeed on a clean tree" | Says what to do, then re-says it inverted |
+| "asserts on the engine's produced error, not on a config flag" | The reader was not going to assume the config flag |
+| "proves detection, not just green-by-default" | Same |
+| "a real assertion, not a smoke test" | Rating your own test inside its description |
+
+**Instead:** state what happens. `Run_TerminatesANonYieldingLoop_WithinTheTimeout` runs `while (true) {}` and asserts elapsed time against `HealthModelScriptRuntime.Timeout`. Stop there.
+
+## Restatement Escalation
+
+The same fact stated three times: as a plain claim, then as an aphorism, then as an importance label. The second and third add words without adding information.
+
+> "The guard must fail on a mutation, not merely succeed on a clean tree. A guard only ever run against an unchanged tree is a vacuous green. The mutate-and-rerun step is the load-bearing half."
+
+All three carry one instruction: **"Mutate the tree and rerun the guard. It has to fail."**
+
+| Stage | Tell |
+|-------|------|
+| 1. Claim with a negation tail | "X, not merely Y" |
+| 2. Generalised aphorism | "A guard only ever run against X is a vacuous green" |
+| 3. Importance label | "The mutate-and-rerun step is the load-bearing half" |
+
+**Instead:** keep stage 1, strip its negation tail, delete stages 2 and 3.
+
+## Em-Dash Bold Clause
+
+The highest-volume tell in technical output: 13,262 sentences, 15.2% of the audited chat corpus. Bold a noun phrase, em-dash, then gloss it.
+
+| Pattern | Problem |
+|---------|---------|
+| "**Conflicts move to the right place** — the storage implementation knows how to resolve them." | Two independent sentences fused by punctuation |
+| "Now it's a **Cosmos 400 BadRequest** — that's an application-level issue, not infra." | Bold + em-dash + negation tail stacked |
+| "**Files with open handles** — a routine state on any file server — continuously generate errors." | Nested appositive, unreadable aloud |
+
+**Instead:** two sentences, no bold. "Conflicts move to the storage implementation. It owns the state, so it resolves them."
+
+## Bold-Label Colon
+
+Turning prose into a pseudo-form: 13.6% of chat sentences open this way. Every paragraph gets a field name, so nothing reads as connected argument.
+
+> **Root cause:** The tool passes step values directly from the JSON.
+> **Conclusion:** Dapr appears in ADRs as a considered alternative.
+> **Recommendation:** Keep the gateway on HTTP.
+
+**Instead:** in a table or a form, use the label. In prose, drop it. "The tool passes step values straight from the JSON."
+
+## Parenthetical Proof-Stuffing
+
+Citations, counts, and file paths crammed mid-sentence so the claim can't be read without stepping over its own evidence. 11.7% of blueprint sentences and 12.2% of chat sentences carry two or more parentheticals.
+
+> "`bundlePieces`' shared/unique split (`:908-932`, built fresh inside `for (const b of bundlePlans)`) and `collectVerticals()`'s pill-avoidance registry (`:934-970`, explicitly commented at `:949` as "never a correctness gate") are each scoped to one bundle's own membership only."
+
+**Instead:** claim first, evidence after. Put line references at the end of the sentence or on their own line.
+
+## Sentence Bloat
+
+Nearly one sentence in ten runs past 40 words, in both corpora (9.9% each). One chat sentence in eighteen passes 60. Most are semicolon-chained clause stacks with parenthetical asides.
+
+**Rule:** at 30 words, look for the second verb and start a new sentence there. Semicolons chaining three or more clauses mean the sentence should have been a list.
+
+## Self-Interrogation
+
+Quoting a question to yourself, then answering it with the answer already graded as complete. The question makes the answer look like the result of checking rather than a claim. 60 instances across 265 blueprints, always in the same italic-quoted shape.
+
+> *"Anything that would make these criteria vacuous?"* Three traps, each closed explicitly: measuring the ablation on cached points instead of regenerated ones; measuring long-label containment on the shipped examples; and proving NC-30 against a library the generator wrote in the same process without a fresh decode. Each criterion above names its boundary to block exactly that.
+
+The passage makes four moves:
+
+| Move | Tell |
+|------|------|
+| Quoted question to self | *"Anything that would make these criteria vacuous?"* |
+| Count with a grade attached | "Three traps, each closed explicitly" |
+| Semicolon list doing the actual work | the only part a reader needs |
+| Closing restatement | "Each criterion above names its boundary to block exactly that." |
+
+**After:**
+> "Three ways these criteria could pass without proving anything: measuring the ablation on cached points instead of regenerated ones, measuring long-label containment on the shipped examples, and proving NC-30 against a library written in the same process without a fresh decode. Each criterion names its boundary."
+
+**Rule:** drop the question, drop the grade ("explicitly," "each closed," "exactly that"), keep the list.
+
+## Count-and-Close
+
+Announcing how many items follow and that all of them are handled, before the reader can check either claim. 26 instances in the same corpus: "Two ways, both closed:", "Four things, each a named FAIL:", "five clauses, each measured:".
+
+| Pattern | Problem |
+|---------|---------|
+| "Three traps, each closed explicitly:" | Pre-grades the list it introduces |
+| "Two gaps remain, both documented:" | "Documented" is not "fixed" |
+| "Four decisions, all decided-by-data:" | Label substitutes for the data |
+| "Each of these is covered by a test." | Name the tests or cut the sentence |
+
+**Instead:** list the items. The reader can count them and judge whether they're closed.
+
+## Justification Tails
+
+Appending the reason the previous clause was written, in the same sentence.
+
+| Pattern | Fix |
+|---------|-----|
+| "..., so the external-state dependency driver is mitigated" | Delete. The observation already showed it. |
+| "..., which is why C1-5 lands before C1-6" | New sentence, or cut |
+| "That is what proves the other three roots load-bearing" | State what the three roots do |
+| "..., so timeout and statement ceiling are the load-bearing limits" | "Only timeout and statement count limit the run." |

@@ -127,6 +127,98 @@ Sentences that announce importance without naming the specific thing. Kill these
 
 If a sentence says something is important/deep/structural without showing the specific thing, cut it or replace it with the specific thing.
 
+## Technical-Register Slop
+
+Technical writing rarely contains "delve" or "tapestry." Its filler is "load-bearing," "not merely," "deliberately" and "exactly." Each of these defends a claim against doubt the reader never raised, and none of them adds a fact.
+
+**Method for every count below.** Two corpora: 1.82M words of assistant chat output (10,369 turns) and 1.02M words of engineering blueprints (265 markdown files). Fenced code blocks and injected skill context are stripped first. Sentences are split with `_split_sentences` from `tools/analyze.py`, so the shipped tool reproduces these figures: 87,261 chat sentences and 48,739 blueprint sentences. Word counts are case-insensitive with word boundaries. Both corpora are live and grow, so treat the proportions as the durable claim and the absolute counts as a snapshot.
+
+### Importance Labels
+
+Words that assert a thing matters without saying why.
+
+| Word | Problem |
+|------|---------|
+| load-bearing | Means "matters." Never says how. |
+| decisive | Announces a conclusion instead of stating it |
+| crux / the actual crux | Same |
+| not decorative / not a nicety / not optional | Defends against an accusation nobody made |
+| belt-and-braces | Jargon for "redundant" |
+| the key insight / the key takeaway | If it's the point, just make the point |
+| the real problem / the real question | Implies the previous sentence was fake |
+
+**Fix:** name the consequence. "Deleting this breaks C24" beats "this is load-bearing for C24."
+
+### Assertion Adverbs
+
+Adverbs that assert the writer checked something. They carry no information about what was checked.
+
+| Word | Chat count | Notes |
+|------|-----------|-------|
+| exactly | 1060 | "asserts exactly N" → "asserts N" |
+| actually | 743 | Implies the surrounding text was hypothetical |
+| correctly | 572 | If it were incorrect you'd say so |
+| silently | 370 | Only meaningful when contrasted with a logged failure |
+| cleanly | 235 | Aesthetic claim posing as a test result |
+| genuinely | 178 | Doubles down on a claim already made |
+| precisely | 38 | Same as "exactly" |
+| properly / strictly / explicitly | — | Same family |
+
+**Fix:** delete the adverb. If the sentence weakens, the missing information was never in the adverb.
+
+### Deliberateness Signalling
+
+Announcing that a choice was intentional. Every choice in a written document was intentional.
+
+- "deliberately NOT asserted"
+- "intentionally not tested"
+- "deliberately deferred"
+- "purposely omitted"
+- "by design"
+
+**Fix:** state the decision and its mechanism. "Memory is not asserted because `MemoryLimitConstraint` self-disables across threads."
+
+### Self-Praise Adjectives
+
+Rating your own work inside the description of it.
+
+| Word | Notes |
+|------|-------|
+| surgical | A diff is small or it isn't. Give the line count. |
+| clean / cleanly | Same |
+| elegant | Never true when self-applied |
+| robust / hardened / battle-tested | Untestable claims |
+| principled / idiomatic | Appeals to taste as if to evidence |
+| canonical / authoritative / source of truth | Usually means "the file I picked" |
+
+### Verdict Openers
+
+Ritual openers that delay the answer by one line. Counted at the start of a line, bullet, or bold run, which is where they occur.
+
+| Opener | Chat count |
+|--------|-----------|
+| "Here's the/what..." | 506 |
+| "Bottom line:" | 94 |
+| "TL;DR" | 34 |
+| "Net:" | 21 |
+| "The key insight/takeaway:" | 20 |
+| "Worth flagging:" | 6 |
+
+**Fix:** the first sentence is already the summary position. Put the answer there.
+
+### Sycophantic Acknowledgements
+
+| Phrase | Chat count |
+|--------|-----------|
+| "You're right" / "You're absolutely right" | 96 |
+| "Good catch" / "Nice catch" | 27 |
+| "Exactly right" | 16 |
+| "Great question" | 16 |
+| "Fair point" | 9 |
+| "Sharp catch" / "Sharp critique" | 3 |
+
+**Fix:** the correction itself proves you agreed.
+
 ## Empirically Overused AI Words
 
 Words that appear far more often in AI-generated text than human-written text. Frequency ratios from Kobak et al. (2025, *Science Advances*, arXiv:2406.07016), based on 15M+ academic abstracts pre/post ChatGPT.
@@ -249,6 +341,8 @@ Tics specific to recent model versions. Too rare for density metrics to catch, b
 | Marker | Evidence |
 |--------|----------|
 | load-bearing | 19.5 hits/100k words on Opus 5; 0.5 → 12.0 per ~500 messages from Opus 4.6 → 4.7 |
+| not merely / not just / not only (as proof) | Appears as a comma-framed tail in 0.4% of blueprint sentences and 0.2% of chat sentences, at near-identical rates |
+| vacuous / tautological (as self-critique) | Marks a test the writer distrusts, then keeps |
 | honest take / the honest truth | Reported alongside "load-bearing" in the same complaints |
 | that's not nothing | Recurring validation filler |
 | sit with that / let's sit with it | Pseudo-therapeutic imperative |
