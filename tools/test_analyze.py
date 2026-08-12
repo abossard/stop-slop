@@ -105,6 +105,12 @@ RARE_MARKER_TEXT = (
     + "That retry check is load-bearing."
 )
 
+# "decisive" in its importance-inflation frames (C11)
+DECISIVE_TEXT = (
+    "The migration proved decisive for the quarter. "
+    "Leadership must act decisively on the remaining backlog."
+)
+
 # Tier-2 words with no other signal present (C6)
 TIER2_ONLY_TEXT = "The comprehensive review gave us crucial insights this week."
 
@@ -599,6 +605,51 @@ class TestThroatClearing:
         result = analyze_module.analyze_text(sentence)
         assert not any("Throat-clearing" in i for i in _issues_of(result)), (
             f"false positive on: {sentence!r}"
+        )
+
+
+class TestDecisiveness:
+    """C11 — "decisive" importance-inflation frames, without flagging the
+    ordinary military, sports and character senses of the adjective."""
+
+    @pytest.mark.parametrize("sentence", [
+        "The cache warm-up proved decisive for the launch.",
+        "That review proves decisive in every incident retro.",
+        "Latency was decisive in choosing the region.",
+        "Automation played a decisive role in the migration.",
+        "The decisive factor was the connection pool size.",
+        "This marked a decisive shift in how the team ships.",
+        "The outage gave the competitor a decisive advantage.",
+        "Leaders must take decisive action on the backlog.",
+        "The board needs to act decisively before renewal.",
+        "Moving decisively, the team cut the release train.",
+    ])
+    def test_decisive_frames_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any("Importance inflation" in i for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "The Union won a decisive victory at Gettysburg.",
+        "She is decisive under pressure and the team trusts her.",
+        "The vote was decisive.",
+        "He gave a decisive answer and hung up.",
+        "Her decisive management style split the room.",
+    ])
+    def test_ordinary_decisive_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any("Importance inflation" in i for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+    def test_decisive_counted_as_tier2(self, analyze_module):
+        result = analyze_module.analyze_text(DECISIVE_TEXT)
+        assert result["tier2_density"] > 0, (
+            "decisive/decisively must count toward tier-2 density"
+        )
+        assert any("Tier-2" in i for i in _issues_of(result)), (
+            "decisive clustered with its own frame must raise the tier-2 issue"
         )
 
 

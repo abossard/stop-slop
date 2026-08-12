@@ -140,7 +140,7 @@ Words that assert a thing matters without saying why.
 | Word | Problem |
 |------|---------|
 | load-bearing | Means "matters." Never says how. |
-| decisive | Announces a conclusion instead of stating it |
+| decisive | Announces a conclusion instead of stating it. Flagged frames are listed under [Importance Inflation: "decisive"](#importance-inflation-decisive). |
 | crux / the actual crux | Same |
 | not decorative / not a nicety / not optional | Defends against an accusation nobody made |
 | belt-and-braces | Jargon for "redundant" |
@@ -392,6 +392,25 @@ The word choice is bleached rather than meaningful. One reported output: "they w
 Prohibiting the word only dampens it: "strong prohibition... reduces the rate... but I still see it once or twice a day."
 
 Sources: [claude-code#53454](https://github.com/anthropics/claude-code/issues/53454), [r/ClaudeAI](https://www.reddit.com/r/ClaudeAI/comments/1tob6q5/that_is_loadbearing/), [jola.dev](https://jola.dev/posts/how-to-stop-claude-from-saying-load-bearing).
+
+### Importance Inflation: "decisive"
+
+LLM prose upgrades ordinary facts into turning points. Wikipedia's *Signs of AI writing* names the move — "a crucial/pivotal/vital role/moment", "key turning point", "marks a shift" — and `decisive` performs the same upgrade for causation and outcomes.
+
+`decisive` is absent from the Kobak et al. excess-vocabulary list, and no published AI/human frequency ratio exists for it. It also has an ordinary register in military, sports, election and character writing. So it is not treated as a density word: `tools/analyze.py` matches the collocations, not the adjective.
+
+| Flagged frame | Rewrite as |
+|---------------|-----------|
+| "X proved decisive" / "proved to be decisive" | Say what X caused |
+| "X was decisive in [deciding, choosing, shaping]" | Name the mechanism |
+| "played a decisive role in" | Say what it did |
+| "the decisive factor / moment / shift / step / turning point / advantage / edge / break" | Name the specific thing |
+| "take decisive action" | Say which action |
+| "act / move / respond decisively" | Say what to do and when |
+
+Not flagged, because they are ordinary English: "won a decisive victory", "she is decisive under pressure", "the vote was decisive", "a decisive answer".
+
+Sources: [Wikipedia:Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing), [Kobak et al. excess-word list](https://github.com/berenslab/llm-excess-vocab) (for the absence), [decisive collocations](https://www.wordreference.com/EnglishCollocations/decisive).
 
 ### AI-Typical Sentence Starters
 
