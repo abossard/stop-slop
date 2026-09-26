@@ -32,30 +32,30 @@ import re
 import statistics
 import sys
 
-# --- Optional heavy dependencies with graceful degradation ---
+# --- Required dependencies: main() prints a banner and exits 3 without them ---
+
+_missing_deps = []
 
 try:
     import textstat
-    HAS_TEXTSTAT = True
-except ImportError:
-    HAS_TEXTSTAT = False
+except Exception as exc:
+    _missing_deps.append(("textstat", exc))
 
+_nlp = None
 try:
     import spacy
+except Exception as exc:
+    _missing_deps.append(("spacy", exc))
+else:
     try:
         _nlp = spacy.load("en_core_web_sm")
-    except OSError:
-        _nlp = None
-    HAS_SPACY = _nlp is not None
-except ImportError:
-    _nlp = None
-    HAS_SPACY = False
+    except Exception as exc:
+        _missing_deps.append(("en_core_web_sm", exc))
 
 try:
     from lexicalrichness import LexicalRichness
-    HAS_LEXRICH = True
-except ImportError:
-    HAS_LEXRICH = False
+except Exception as exc:
+    _missing_deps.append(("lexicalrichness", exc))
 
 
 # --- AI vocabulary list (Kobak et al. 2025, arXiv:2406.07016) ---
@@ -218,6 +218,11 @@ DEFENSIVE_NEGATION_RES = [
         r"(?:decorative|optional|cosmetic|throwaway|nicety|smoke test)\b",
         re.IGNORECASE,
     ),
+    re.compile(
+        r",\s*not\s+(?:(?:an?|the)\s+)?"
+        r"(?:complete|full|whole|final|entire|only)\b",
+        re.IGNORECASE,
+    ),
 ]
 
 # Validation openers. Sycophancy is a documented RLHF artifact: preference
@@ -295,12 +300,202 @@ EM_DASH = "\u2014"
 # Minimum POS tokens before syntactic-template rates are stable enough to
 # report. Matches the conservative floors used for hapax/Yule's K/MTLD.
 TEMPLATE_MIN_TOKENS = 100
+LONG_SENTENCE_WORDS = 25
+SUBJECT_VERB_GAP = 10
+NOMINALIZATION_SUFFIXES = (
+    "tion", "sion", "ment", "ance", "ence", "ity", "ness",
+)
+# Suffix matches that are ordinary nouns, not hidden verbs.
+NOMINALIZATION_EXCLUDE = {"sentence", "section", "reference", "evidence"}
+
+# Every entry appears in at least one fetched list, marked per line:
+# PL  = plainlanguage.gov "Simple Words and Phrases", archived 2016-12-23:
+#       https://web.archive.org/web/20161223073724/http://www.plainlanguage.gov/howto/wordsuggestions/simplewords.cfm
+# PEC = Plain English Campaign "The A to Z of alternative words" (2001), archived 2020-01-09:
+#       https://web.archive.org/web/20200109034429/http://www.plainenglish.co.uk/files/alternative.pdf
+# Words already in ALL_AI_WORDS stay out, so one word yields one issue.
+PLAIN_SWAPS = {
+    "utilize": "use",  # PL; PEC "utilise"
+    "utilization": "use",  # PL; PEC "utilisation"
+    "in order to": "to",  # PL
+    "due to the fact that": "because",  # PL "due to, since"; PEC "due to the fact of": because
+    "prior to": "before",  # PL, PEC
+    "subsequent to": "after",  # PEC
+    "provide": "give",  # PL, PEC
+    "purchase": "buy",  # PL, PEC
+    "obtain": "get",  # PEC
+    "commence": "start",  # PL, PEC
+    "terminate": "end",  # PL, PEC
+    "assist": "help",  # PL; PEC "assistance"
+    "attempt": "try",  # PL, PEC
+    "approximately": "about",  # PEC
+    "sufficient": "enough",  # PL, PEC
+    "numerous": "many",  # PL, PEC
+    "initial": "first",  # PL
+    "additional": "more",  # PL, PEC
+    "modify": "change",  # PL; PEC "modification"
+    "demonstrate": "show",  # PL, PEC
+    "indicate": "show",  # PL, PEC
+    "regarding": "about",  # PL, PEC
+    "concerning": "about",  # PL, PEC
+    "therefore": "so",  # PL
+    "nevertheless": "but",  # PEC
+    "however": "but",  # PL
+    "facilitate": "help",  # PL, PEC
+    "implement": "do",  # PEC "carry out, do"; PL "carry out, start"
+    "objective": "goal",  # PL, PEC
+    "requirement": "need",  # PL; PEC "requirements"
+    "immediately": "now",  # PEC "at once, now"; PL "at once"
+    "currently": "now",  # PL, PEC
+    "frequently": "often",  # PL, PEC
+    "persons": "people",  # PEC
+    "reside": "live",  # PL, PEC
+    "retain": "keep",  # PL, PEC
+    "perform": "do",  # PL, PEC
+    "establish": "set up",  # PL, PEC
+    "finalize": "finish",  # PL; PEC "finalise"
+    "equivalent": "equal",  # PEC
+}
+PLAIN_SINGLE_WORDS = {word for word in PLAIN_SWAPS if " " not in word}
+PLAIN_PHRASE_RES = {
+    phrase: re.compile(rf"\b{re.escape(phrase)}\b", re.IGNORECASE)
+    for phrase in PLAIN_SWAPS if " " in phrase
+}
+MERMAID_WARN_NODES = 10
+MERMAID_SPLIT_NODES = 20
+MERMAID_LABEL_WORDS = 7
+MERMAID_SUBGRAPH_DEPTH = 2
+EMOJI_RE = re.compile(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]")
+BOLD_RE = re.compile(r"(\*\*|__)(.+?)\1", re.DOTALL)
+MERMAID_ID = r"[A-Za-z_]\w*(?:-\w+)*"
+# Flowchart shapes, longest delimiters first: (((x))) ((x)) ([x]) [[x]] [(x)] {{x}} [/x/] >x] [x] (x) {x}
+NODE_LABEL_RE = re.compile(
+    rf"\b({MERMAID_ID})\s*(?:"
+    r"\(\(\((.*?)\)\)\)|\(\((.*?)\)\)|\(\[(.*?)\]\)|\[\[(.*?)\]\]|\[\((.*?)\)\]|\{\{(.*?)\}\}"
+    r"|\[[/\\](.*?)[/\\]\]|>(.*?)\]|\[(.*?)\]|\((.*?)\)|\{(.*?)\})"
+)
+MERMAID_DIRECTIVE_RE = re.compile(
+    r"^(?:%%|flowchart\b|graph\b|classDef\b|class\b|style\b|click\b|linkStyle\b|direction\b)",
+    re.IGNORECASE,
+)
+MERMAID_PIPE_LABEL_RE = re.compile(r"\|[^|]*\|")
+MERMAID_EDGE_TEXT_RE = re.compile(r"(?<![-.=<])(?:--|==|-\.)(?![-.=>])\s+.+?\s+(?=[-.=<]{2,})")
+MERMAID_EDGE_RE = re.compile(r"<?[-.=]{2,}[>xo]?|&")
+MERMAID_ID_RE = re.compile(MERMAID_ID)
+SEQUENCE_MARKER_RE = re.compile(
+    r"(?:^|[.;:,]\s+)(?:first|second|third|then|next|after that|finally)\b",
+    re.IGNORECASE,
+)
+
+FENCE_RE = re.compile(r"^\s*(```|~~~)")
+HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+")
+LIST_ITEM_RE = re.compile(r"^\s*(?:[-+*]\s+|\d+[.)]\s+)")
+BLOCKQUOTE_RE = re.compile(r"^\s*>\s?")
+TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
+SENTENCE_BREAK_RE = re.compile(r"(?<=[.!?])\s+")
+ORDERED_MARKER_RE = re.compile(r"\s*(?:>\s*)*\d+[.)]")
+WORD_CHAR_RE = re.compile(r"\w")
+INLINE_CODE_RE = re.compile(r"(?<!`)(`+)(?!`)[^`\n]+?(?<!`)\1(?!`)")
+LINK_TARGET_RE = re.compile(r"(?<=\])\([^)\s]*(?:\s+\"[^\"]*\")?\)")
+BARE_URL_RE = re.compile(r"https?://[^\s<>]*[^\s<>.,;:!?)\]]")
 
 
-def _split_sentences(text: str) -> list[str]:
-    """Split text into sentences using regex. Handles abbreviations reasonably."""
-    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
-    return [s.strip() for s in sentences if s.strip()]
+def _mask_non_prose(text: str) -> str:
+    """Blank inline code, link targets and bare URLs, keeping every offset."""
+    for pattern in (INLINE_CODE_RE, LINK_TARGET_RE, BARE_URL_RE):
+        text = pattern.sub(lambda match: " " * len(match.group(0)), text)
+    return text
+
+
+def _trimmed_span(text: str, start: int, end: int) -> tuple[int, int] | None:
+    """Return the non-space span inside text[start:end]."""
+    segment = text[start:end]
+    left = len(segment) - len(segment.lstrip())
+    right = len(segment.rstrip())
+    if left >= right:
+        return None
+    return start + left, start + right
+
+
+def _sentence_spans_in_block(text: str, masked: str, start: int, end: int) -> list[dict]:
+    """Split one prose block at sentence ends found in the masked text.
+
+    Spans are trimmed on the original text, so leading or trailing inline
+    code and URLs stay inside; parts with no word character are dropped.
+    """
+    trimmed = _trimmed_span(text, start, end)
+    if trimmed is None:
+        return []
+
+    block_start, block_end = trimmed
+    content = masked[block_start:block_end]
+    cuts = [
+        match.start() for match in SENTENCE_BREAK_RE.finditer(content)
+        if not ORDERED_MARKER_RE.fullmatch(content[:match.start()])
+    ]
+    spans = []
+    for left, right in zip([0] + cuts, cuts + [len(content)]):
+        part = _trimmed_span(text, block_start + left, block_start + right)
+        if part and WORD_CHAR_RE.search(masked[part[0]:part[1]]):
+            spans.append({"start": part[0], "end": part[1]})
+    return spans
+
+
+def _fence_segments(text: str) -> list[tuple[str | None, int, list[tuple[int, int, int, str]]]]:
+    """Split text at code fences into (fence, opening_line, lines) runs.
+
+    fence is None for prose and the fence's info word (for example "mermaid")
+    inside a fence. Each line is (line_no, start, end, text); delimiter lines
+    are dropped.
+    """
+    segments = []
+    fence, opened, lines = None, 0, []
+    pos = 0
+    for line_no, raw in enumerate(text.splitlines(keepends=True), 1):
+        line = raw.rstrip("\r\n")
+        start, pos = pos, pos + len(raw)
+        match = FENCE_RE.match(line)
+        if not match:
+            lines.append((line_no, start, start + len(line), line))
+            continue
+        segments.append((fence, opened, lines))
+        fence = (line[match.end():].split() or [""])[0].lower() if fence is None else None
+        opened, lines = line_no, []
+    segments.append((fence, opened, lines))
+    return segments
+
+
+def _split_sentence_spans(text: str, masked: str) -> list[dict]:
+    """Split markdown prose into sentence spans. Code fences and tables are skipped.
+
+    Headings and blockquote lines stand alone; a list item keeps its
+    continuation lines, like a paragraph. Boundaries come from the masked text.
+    """
+    spans = []
+
+    def emit(block):
+        if block:
+            spans.extend(_sentence_spans_in_block(text, masked, *block))
+
+    for fence, _, lines in _fence_segments(masked):
+        if fence is not None:
+            continue
+        block = None
+        for _, start, end, line in lines:
+            if not line.strip() or TABLE_ROW_RE.match(line):
+                emit(block)
+                block = None
+            elif HEADING_RE.match(line) or BLOCKQUOTE_RE.match(line):
+                emit(block)
+                emit((start, end))
+                block = None
+            elif block is None or LIST_ITEM_RE.match(line):
+                emit(block)
+                block = (start, end)
+            else:
+                block = (block[0], end)
+        emit(block)
+    return spans
 
 
 def _word_tokenize(text: str) -> list[str]:
@@ -327,7 +522,7 @@ def _compute_ttr(words: list[str]) -> float:
 
 
 def _lemmatize_fallback(word: str, lexicon: set[str]) -> str:
-    """Lemmatize via simple suffix stripping (no spaCy)."""
+    """Suffix-strip a word to a lexicon entry; backs up spaCy lemmas."""
     if word.endswith("ing") and len(word) > 5:
         base = word[:-3]
         if base + "e" in lexicon:
@@ -353,31 +548,262 @@ def _lemmatize_fallback(word: str, lexicon: set[str]) -> str:
 
 
 def _spacy_analyze(text: str) -> dict:
-    """Single spaCy pass over the full text. Returns lemma map, passive sentence texts, POS tags."""
-    if not HAS_SPACY:
-        return {"lemmas": {}, "passive_sentence_texts": set(), "pos_tags": []}
-
+    """Single spaCy pass over the full text. Returns reusable parser data."""
     doc = _nlp(text)
-    # Build token -> lemma mapping
     lemmas = {}
     for tok in doc:
         lower = tok.text.lower()
         if lower not in lemmas:
             lemmas[lower] = tok.lemma_.lower()
 
-    # Collect text of passive sentences (normalized for matching)
-    passive_sentence_texts = set()
-    for sent in doc.sents:
-        if any(tok.dep_ in ("nsubjpass", "auxpass") for tok in sent):
-            passive_sentence_texts.add(sent.text.strip())
+    return {"doc": doc, "lemmas": lemmas}
 
-    pos_tags = [tok.pos_ for tok in doc if not tok.is_space]
+
+def _tokens_by_sentence(doc, sentence_spans: list[dict]) -> list[list]:
+    """Map spaCy tokens to our markdown sentences by character offset, in one pass."""
+    mapped = [[] for _ in sentence_spans]
+    index = 0
+    for tok in doc:
+        if tok.is_space:
+            continue
+        while index < len(sentence_spans) and tok.idx >= sentence_spans[index]["end"]:
+            index += 1
+        if index == len(sentence_spans):
+            break
+        if tok.idx >= sentence_spans[index]["start"]:
+            mapped[index].append(tok)
+    return mapped
+
+
+def _plain_base(word: str, lemma: str) -> str | None:
+    if lemma in PLAIN_SINGLE_WORDS:
+        return lemma
+    base = _lemmatize_fallback(word, PLAIN_SINGLE_WORDS)
+    return base if base in PLAIN_SINGLE_WORDS else None
+
+
+def _plain_swap_hits(sent: str, tokens: list) -> list[tuple[str, str]]:
+    hits = []
+    occupied = []
+    for phrase, pattern in PLAIN_PHRASE_RES.items():
+        for match in pattern.finditer(sent):
+            hits.append((match.group(0), PLAIN_SWAPS[phrase]))
+            occupied.append(match.span())
+
+    token_items = [
+        (tok.text, tok.lower_, tok.lemma_.lower(), tok.idx, tok.idx + len(tok.text))
+        for tok in tokens
+        if not tok.is_punct and not tok.is_space
+    ]
+    sent_start = min((tok.idx for tok in tokens), default=0)
+
+    for surface, lower, lemma, start, end in token_items:
+        local = (start - sent_start, end - sent_start)
+        if any(local[0] >= span[0] and local[1] <= span[1] for span in occupied):
+            continue
+        base = _plain_base(lower, lemma)
+        if base:
+            hits.append((surface, PLAIN_SWAPS[base]))
+    return hits
+
+
+def _is_nominalization(token) -> bool:
+    word = token.text.lower().strip("'")
+    if token.pos_ != "NOUN" or token.lemma_.lower() in NOMINALIZATION_EXCLUDE:
+        return False
+    return any(
+        word.endswith(suffix) or word.endswith(suffix + "s")
+        for suffix in NOMINALIZATION_SUFFIXES
+    )
+
+
+def _compute_nominalization_density(sentence_tokens: list[list], word_count: int) -> float:
+    if word_count == 0:
+        return 0.0
+    count = sum(1 for tokens in sentence_tokens for tok in tokens if _is_nominalization(tok))
+    return round(count / word_count * 1000, 2)
+
+
+def _mean_dependency_distance(sentence_tokens: list[list]) -> float:
+    sentence_means = []
+    for tokens in sentence_tokens:
+        clean = [tok for tok in tokens if not tok.is_punct]
+        positions = {tok.i: idx for idx, tok in enumerate(clean)}
+        distances = [
+            abs(positions[tok.i] - positions[tok.head.i])
+            for tok in clean
+            if tok.head.i in positions and tok.head.i != tok.i
+        ]
+        if distances:
+            sentence_means.append(statistics.mean(distances))
+    if not sentence_means:
+        return 0.0
+    return round(statistics.mean(sentence_means), 4)
+
+
+def _subject_verb_gaps(tokens: list) -> list[tuple[str, str, int]]:
+    clean = [tok for tok in tokens if not tok.is_punct]
+    positions = {tok.i: idx for idx, tok in enumerate(clean)}
+    gaps = []
+    for tok in clean:
+        if tok.dep_ not in ("nsubj", "nsubjpass"):
+            continue
+        head = tok.head
+        if head.i not in positions or head.pos_ not in ("VERB", "AUX"):
+            continue
+        gap = abs(positions[head.i] - positions[tok.i]) - 1
+        if gap >= SUBJECT_VERB_GAP:
+            gaps.append((tok.text, head.text, gap))
+    return gaps
+
+
+def _trailing_ing_clause(tokens: list) -> str | None:
+    """Return the start of a comma-led -ing clause that runs to the sentence end."""
+    words = [t for t in tokens if not t.is_punct and not t.is_space]
+    for idx, tok in enumerate(tokens):
+        if tok.text != ",":
+            continue
+        following = [t for t in tokens[idx + 1:] if not t.is_punct and not t.is_space]
+        if not following:
+            continue
+        head = following[0]
+        if head.tag_ != "VBG" or head.dep_ != "advcl" or head.right_edge.i < words[-1].i:
+            continue
+        take = 3 if len(following) >= 3 and following[1].lower_ in {"a", "an", "the"} else 2
+        return " ".join(t.text for t in following[:take])
+    return None
+
+
+def _compute_textstat_metrics(text: str, sentence_tokens: list[list]) -> dict:
+    if not text.strip():
+        return {"smog_index": 0, "dale_chall_score": 0, "difficult_word_rate": 0}
+
+    word_tokens = [
+        tok for tokens in sentence_tokens for tok in tokens
+        if not tok.is_punct and not tok.is_space and tok.is_alpha and tok.pos_ != "PROPN"
+    ]
+    difficult = sum(1 for tok in word_tokens if textstat.is_difficult_word(tok.text))
+    denominator = len(word_tokens)
 
     return {
-        "lemmas": lemmas,
-        "passive_sentence_texts": passive_sentence_texts,
-        "pos_tags": pos_tags,
+        "smog_index": round(textstat.smog_index(text), 2),
+        "dale_chall_score": round(textstat.dale_chall_readability_score(text), 2),
+        "difficult_word_rate": round(difficult / denominator, 4) if denominator else 0,
     }
+
+
+def _find_mermaid_visuals(segments: list) -> list[dict]:
+    """Size, label and nesting checks for each mermaid fence, bare IDs included."""
+    findings = []
+    for fence, opened, lines in segments:
+        if fence != "mermaid":
+            continue
+        nodes = set()
+        depth = 0
+        depth_reported = False
+        for line_no, _, _, line in lines:
+            stripped = line.strip()
+            if stripped.lower().startswith("subgraph"):
+                depth += 1
+                if depth > MERMAID_SUBGRAPH_DEPTH and not depth_reported:
+                    findings.append({
+                        "line": line_no,
+                        "kind": "mermaid",
+                        "issue": "Mermaid subgraph nesting exceeds depth 2",
+                    })
+                    depth_reported = True
+                continue
+            if stripped == "end":
+                depth = max(0, depth - 1)
+                continue
+            if not stripped or MERMAID_DIRECTIVE_RE.match(stripped):
+                continue
+
+            # ponytail: regex Mermaid parser. Misses one-line `graph TD; A-->B` diagrams,
+            # `~~~` links, numeric IDs and v11 `@{ shape }` nodes; swap in a real parser
+            # if one lands in Python.
+            for match in NODE_LABEL_RE.finditer(line):
+                label = next(g for g in match.groups()[1:] if g is not None).strip().strip("\"'")
+                if EMOJI_RE.search(label):
+                    findings.append({"line": line_no, "kind": "emoji", "issue": "Emoji as decoration"})
+                for label_line in re.split(r"<br\s*/?>", label, flags=re.IGNORECASE):
+                    if len(_word_tokenize(label_line)) > MERMAID_LABEL_WORDS:
+                        findings.append({
+                            "line": line_no,
+                            "kind": "mermaid",
+                            "issue": "Mermaid label has more than 7 words",
+                        })
+                        break
+            bare = NODE_LABEL_RE.sub(lambda match: match.group(1), line)
+            bare = MERMAID_EDGE_TEXT_RE.sub("", MERMAID_PIPE_LABEL_RE.sub(" ", bare))
+            for part in MERMAID_EDGE_RE.split(bare):
+                node = part.split(":::")[0].strip().rstrip(";")
+                if MERMAID_ID_RE.fullmatch(node):
+                    nodes.add(node)
+
+        count = len(nodes)
+        if count > MERMAID_SPLIT_NODES:
+            findings.append({"line": opened, "kind": "mermaid", "issue": f"Split Mermaid diagram ({count} nodes)"})
+        elif count > MERMAID_WARN_NODES:
+            findings.append({"line": opened, "kind": "mermaid", "issue": f"Mermaid diagram has {count} nodes"})
+    return findings
+
+
+def _paragraphs_for_steps(prose_lines: list[tuple[int, str]]) -> list[tuple[int, str]]:
+    """Plain paragraphs (no lists, headings, quotes or tables) with their first line number."""
+    paragraphs = []
+    current = []
+    first = 0
+    for line_no, line in prose_lines + [(0, "")]:
+        if not line.strip() or any(
+            pattern.match(line) for pattern in (TABLE_ROW_RE, HEADING_RE, LIST_ITEM_RE, BLOCKQUOTE_RE)
+        ):
+            if current:
+                paragraphs.append((first, " ".join(current)))
+            current = []
+            continue
+        if not current:
+            first = line_no
+        current.append(line.strip())
+    return paragraphs
+
+
+def _detect_visuals(text: str, prose_word_count: int) -> tuple[list[dict], float]:
+    segments = _fence_segments(text)
+    findings = _find_mermaid_visuals(segments)
+
+    prose_lines = []
+    for fence, _, lines in segments:
+        if fence is None:
+            prose_lines.extend((line_no, line) for line_no, _, _, line in lines)
+        else:
+            prose_lines.append((0, ""))
+
+    for line_no, line in prose_lines:
+        stripped = line.lstrip()
+        list_match = LIST_ITEM_RE.match(stripped)
+        first_token = stripped[list_match.end():].split()[:1] if list_match else []
+        if (HEADING_RE.match(stripped) and EMOJI_RE.search(stripped)) or (
+            first_token and EMOJI_RE.search(first_token[0])
+        ):
+            findings.append({"line": line_no, "kind": "emoji", "issue": "Emoji as decoration"})
+
+    for line_no, paragraph in _paragraphs_for_steps(prose_lines):
+        if len(SEQUENCE_MARKER_RE.findall(paragraph)) >= 3:
+            findings.append({
+                "line": line_no,
+                "kind": "steps",
+                "issue": "Steps in prose: use a numbered list",
+            })
+
+    prose = _mask_non_prose("\n".join(line for _, line in prose_lines))
+    bold = [
+        match for match in BOLD_RE.finditer(prose)
+        # ponytail: lowercase __name__ spans read as Python dunders, not bold.
+        if not (match.group(1) == "__" and re.fullmatch(r"[a-z][a-z0-9_]*", match.group(2)))
+    ]
+    bold_density = round(len(bold) / prose_word_count * 100, 2) if prose_word_count else 0
+    return findings, bold_density
 
 
 def _lexicon_hit(word: str, spacy_lemmas: dict, lexicon: set[str]) -> bool:
@@ -450,22 +876,6 @@ def _compute_contraction_rate(text: str, sentences: list[str]) -> float:
     return round(count / len(sentences), 4)
 
 
-def _detect_ai_starters(sentences: list[str]) -> list[dict]:
-    """Detect sentences that begin with AI-typical transition starters.
-    Source: Przystalski et al. 2025, multi_detector.py."""
-    findings = []
-    for idx, sent in enumerate(sentences):
-        sent_lower = sent.lower().lstrip()
-        for starter in AI_SENTENCE_STARTERS:
-            if sent_lower.startswith(starter):
-                findings.append({
-                    "line": idx + 1,
-                    "starter": starter.rstrip(","),
-                })
-                break
-    return findings
-
-
 def _detect_signature_markers(text: str) -> dict[str, int]:
     """Count model-era signature markers by occurrence.
 
@@ -491,7 +901,7 @@ def _compute_lexicon_density(
     return round(hits / len(words) * 1000, 2)
 
 
-def _compute_syntactic_templates(pos_tags: list[str], has_pos: bool) -> dict | None:
+def _compute_syntactic_templates(pos_tags: list[str]) -> dict | None:
     """POS n-gram template repetition (Shaib et al. 2024, arXiv:2407.00211).
 
     A template is a POS n-gram that repeats at least twice. The rate is the
@@ -504,10 +914,8 @@ def _compute_syntactic_templates(pos_tags: list[str], has_pos: bool) -> dict | N
     the number is only comparable between texts of similar length and carries
     no AI-like threshold.
 
-    Returns None with a `reason` when it cannot be computed.
+    Returns None below TEMPLATE_MIN_TOKENS POS tokens.
     """
-    if not has_pos:
-        return None
     if len(pos_tags) < TEMPLATE_MIN_TOKENS:
         return None
 
@@ -550,36 +958,23 @@ def _match_labels(sent: str, patterns: list) -> list[str]:
     return hits
 
 
-def _compute_passive_voice_rate(
-    sentences: list[str], passive_texts: set[str] | None = None
-) -> float:
+def _compute_passive_voice_rate(sentences: list[str], passive_data: list[bool]) -> float:
     """Fraction of sentences with passive voice."""
     if not sentences:
         return 0.0
-
-    if passive_texts is not None:
-        # Match our regex-split sentences against spaCy's passive detections
-        count = sum(1 for s in sentences if s.strip() in passive_texts)
-        return round(count / len(sentences), 4)
-
-    # Regex fallback
-    passive_re = re.compile(
-        r'\b(?:was|were|been|being|is|are|am)\s+\w+(?:ed|en|t)\b', re.IGNORECASE
-    )
-    passive_count = sum(1 for s in sentences if passive_re.search(s))
-    return round(passive_count / len(sentences), 4)
+    return round(sum(passive_data) / len(sentences), 4)
 
 
 def _compute_readability(text: str) -> float:
     """Flesch-Kincaid grade level."""
-    if HAS_TEXTSTAT and text.strip():
+    if text.strip():
         return round(textstat.flesch_kincaid_grade(text), 2)
     return 0.0
 
 
 def _generate_findings(
-    sentences: list[str], words: list[str],
-    spacy_lemmas: dict, passive_texts: set[str] | None = None,
+    sentences: list[str], shown: list[str], spacy_lemmas: dict,
+    passive_data: list[bool], sentence_tokens: list[list],
 ) -> list[dict]:
     """Per-sentence findings with sentence indices and issues."""
     findings = []
@@ -587,6 +982,18 @@ def _generate_findings(
     for idx, sent in enumerate(sentences):
         issues = []
         sent_words = _word_tokenize(sent)
+        tokens = sentence_tokens[idx]
+
+        if len(sent_words) > LONG_SENTENCE_WORDS:
+            issues.append(f"Long sentence ({len(sent_words)} words)")
+
+        for found, plain in _plain_swap_hits(sent, tokens):
+            issues.append(f'Plain word: "{found}" -> "{plain}"')
+
+        nominalizations = [tok.text.lower() for tok in tokens if _is_nominalization(tok)]
+        verb_count = sum(1 for tok in tokens if tok.pos_ in ("VERB", "AUX"))
+        if len(nominalizations) >= 2 and len(nominalizations) > verb_count:
+            issues.append(f"Nominalizations: {', '.join(nominalizations)}")
 
         # Check AI vocabulary (lemmatized to catch inflections)
         ai_words_found = [w for w in sent_words if _lexicon_hit(w, spacy_lemmas, ALL_AI_WORDS)]
@@ -604,16 +1011,17 @@ def _generate_findings(
                 issues.append(f"AI-typical phrase: \"{phrase}\"")
 
         # Check passive voice
-        if passive_texts is not None:
-            if sent.strip() in passive_texts:
-                issues.append("Passive voice — name the actor")
-        else:
-            passive_re = re.compile(
-                r'\b(?:was|were|been|being|is|are)\s+\w+(?:ed|en|t)\b',
-                re.IGNORECASE
+        if passive_data[idx] and not any(tok.dep_ == "agent" for tok in tokens):
+            issues.append("Passive voice with no actor: name who does it")
+
+        clause = _trailing_ing_clause(tokens)
+        if clause:
+            issues.append(f'Trailing -ing clause: "{clause}"')
+
+        for subject, verb, gap in _subject_verb_gaps(tokens)[:1]:
+            issues.append(
+                f'Subject far from verb: "{subject}" ... "{verb}" ({gap} words apart)'
             )
-            if passive_re.search(sent):
-                issues.append("Possible passive voice — name the actor")
 
         # Check hedge stacking (≥2 hedges in one sentence)
         hedge_words = re.findall(
@@ -656,7 +1064,7 @@ def _generate_findings(
         if not claimed_by_parallelism:
             for hit in _match_labels(sent, DEFENSIVE_NEGATION_RES):
                 issues.append(
-                    f"Defensive negation: \"{hit}\" — cut the tail, the claim already stands"
+                    f"Defensive negation: \"{hit}\": cut the tail, the claim already stands"
                 )
                 break
 
@@ -696,7 +1104,7 @@ def _generate_findings(
         if issues:
             findings.append({
                 "line": idx + 1,
-                "sentence": sent[:120] + ("..." if len(sent) > 120 else ""),
+                "sentence": shown[idx][:120] + ("..." if len(shown[idx]) > 120 else ""),
                 "issues": issues,
             })
 
@@ -705,7 +1113,8 @@ def _generate_findings(
 
 def analyze_text(text: str) -> dict:
     """Analyze text and return a metrics dictionary."""
-    text = text.strip()
+    raw_text = text
+    text = raw_text.strip()
     if not text:
         return {
             "word_count": 0,
@@ -725,17 +1134,45 @@ def analyze_text(text: str) -> dict:
             "syntactic_templates": None,
             "syntactic_templates_unavailable_reason": None,
             "mtld": None,
+            "long_sentence_count": 0,
+            "plain_swap_count": 0,
+            "nominalization_density": 0,
+            "mean_dependency_distance": 0,
+            "smog_index": 0,
+            "dale_chall_score": 0,
+            "difficult_word_rate": 0,
+            "visual_findings": [],
+            "bold_density": 0,
             "findings": [],
         }
 
-    sentences = _split_sentences(text)
-    words = _word_tokenize(text)
+    # Inline code, link targets and URLs become spaces, so offsets still line up.
+    masked = _mask_non_prose(text)
+    sentence_spans = _split_sentence_spans(text, masked)
+    sentences = [masked[span["start"]:span["end"]].strip() for span in sentence_spans]
+    shown = [text[span["start"]:span["end"]] for span in sentence_spans]
+    prose_text = "\n".join(sentences)
+    words = _word_tokenize(prose_text)
     sentence_lengths = [len(_word_tokenize(s)) for s in sentences]
 
-    # Single spaCy pass for lemmas + passive voice
-    spacy_data = _spacy_analyze(text)
+    spacy_data = _spacy_analyze(masked)
     spacy_lemmas = spacy_data["lemmas"]
-    passive_texts = spacy_data["passive_sentence_texts"] if HAS_SPACY else None
+    sentence_tokens = _tokens_by_sentence(spacy_data["doc"], sentence_spans)
+    # A passive counts only when its head verb sits in the same sentence;
+    # masked code can otherwise hand one sentence's subject to the next verb.
+    passive_data = [
+        any(t.dep_ in ("nsubjpass", "auxpass") and tokens[0].i <= t.head.i <= tokens[-1].i for t in tokens)
+        for tokens in sentence_tokens
+    ]
+    pos_tags = [
+        tok.pos_
+        for tokens in sentence_tokens
+        for tok in tokens
+        if not tok.is_punct
+    ]
+    findings = _generate_findings(sentences, shown, spacy_lemmas, passive_data, sentence_tokens)
+    textstat_metrics = _compute_textstat_metrics(prose_text, sentence_tokens)
+    visual_findings, bold_density = _detect_visuals(raw_text, len(words))
 
     result = {
         "word_count": len(words),
@@ -743,34 +1180,42 @@ def analyze_text(text: str) -> dict:
         "burstiness": _compute_burstiness(sentence_lengths),
         "ttr": _compute_ttr(words),
         "ai_vocabulary_density": _compute_ai_vocab_density(words, spacy_lemmas),
-        "passive_voice_rate": _compute_passive_voice_rate(sentences, passive_texts),
-        "flesch_kincaid_grade": _compute_readability(text),
+        "passive_voice_rate": _compute_passive_voice_rate(sentences, passive_data),
+        "flesch_kincaid_grade": _compute_readability(prose_text),
         "hapax_ratio": _compute_hapax_ratio(words),
         "yules_k": _compute_yules_k(words),
-        "contraction_rate": _compute_contraction_rate(text, sentences),
-        "signature_markers": _detect_signature_markers(text),
+        "contraction_rate": _compute_contraction_rate(prose_text, sentences),
+        "signature_markers": _detect_signature_markers(prose_text),
         "tier2_density": _compute_lexicon_density(words, AI_TIER2_WORDS, spacy_lemmas),
         "kobak_common10_density": _compute_lexicon_density(
             words, KOBAK_COMMON_10, spacy_lemmas
         ),
-        "em_dash_count": text.count(EM_DASH),
-        "syntactic_templates": _compute_syntactic_templates(
-            spacy_data["pos_tags"], HAS_SPACY
-        ),
-        "syntactic_templates_unavailable_reason": (
-            None if HAS_SPACY else "spacy-unavailable"
-        ),
+        "em_dash_count": prose_text.count(EM_DASH),
+        "syntactic_templates": _compute_syntactic_templates(pos_tags),
+        "syntactic_templates_unavailable_reason": None,
         "sentence_length_mean": round(statistics.mean(sentence_lengths), 2) if sentence_lengths else 0,
         "sentence_length_stdev": round(statistics.stdev(sentence_lengths), 2) if len(sentence_lengths) >= 2 else 0,
         "sentence_length_min": min(sentence_lengths) if sentence_lengths else 0,
         "sentence_length_max": max(sentence_lengths) if sentence_lengths else 0,
-        "findings": _generate_findings(sentences, words, spacy_lemmas, passive_texts),
+        "long_sentence_count": sum(1 for length in sentence_lengths if length > LONG_SENTENCE_WORDS),
+        "plain_swap_count": sum(
+            1 for finding in findings for issue in finding["issues"]
+            if issue.startswith("Plain word:")
+        ),
+        "nominalization_density": _compute_nominalization_density(
+            sentence_tokens, len(words)
+        ),
+        "mean_dependency_distance": _mean_dependency_distance(sentence_tokens),
+        "visual_findings": visual_findings,
+        "bold_density": bold_density,
+        "findings": findings,
     }
+    result.update(textstat_metrics)
 
     # MTLD via lexicalrichness (requires enough words for stable measurement)
-    if HAS_LEXRICH and len(words) >= 50:
+    if len(words) >= 50:
         try:
-            lr = LexicalRichness(text)
+            lr = LexicalRichness(prose_text)
             result["mtld"] = round(lr.mtld(threshold=0.72), 2)
         except Exception:
             result["mtld"] = None
@@ -807,6 +1252,12 @@ def _format_human(result: dict) -> str:
 
     fk = result["flesch_kincaid_grade"]
     lines.append(f"Flesch-Kincaid:      {fk:.1f}")
+    lines.append(f"SMOG:                {result.get('smog_index', 0):.1f}")
+    lines.append(f"Dale-Chall:          {result.get('dale_chall_score', 0):.1f}")
+    lines.append(f"Difficult words:     {result.get('difficult_word_rate', 0):.1%}")
+    lines.append(
+        "Readability formulas explain roughly a quarter to a third of reader difficulty."
+    )
 
     mtld = result.get("mtld")
     if mtld is not None:
@@ -846,8 +1297,6 @@ def _format_human(result: dict) -> str:
             f"({templates['pos_token_count']} POS tokens; rises with length, "
             f"compare like-sized texts only)"
         )
-    elif result.get("syntactic_templates_unavailable_reason"):
-        lines.append("Template rate:       n/a (spaCy unavailable)")
 
     markers = result.get("signature_markers") or {}
     if markers:
@@ -877,17 +1326,27 @@ def _format_human(result: dict) -> str:
     else:
         lines.append("No per-sentence findings. Text looks clean.\n")
 
-    # Dependencies status
-    deps = []
-    if not HAS_TEXTSTAT:
-        deps.append("textstat (readability)")
-    if not HAS_SPACY:
-        deps.append("spacy+en_core_web_sm (passive voice)")
-    if not HAS_LEXRICH:
-        deps.append("lexicalrichness (MTLD/MATTR)")
-    if deps:
-        lines.append(f"Note: missing optional deps: {', '.join(deps)}")
+    visual_findings = result.get("visual_findings") or []
+    if visual_findings:
+        lines.append(f"── Visual findings ({len(visual_findings)} flagged) ──\n")
+        for finding in visual_findings:
+            lines.append(f"  [{finding['line']}] {finding['issue']}")
+        lines.append("")
 
+    return "\n".join(lines)
+
+
+def _missing_deps_banner() -> str:
+    rule = "═" * 72
+    lines = [rule, "  STOP-SLOP ANALYZER: REQUIRED DEPENDENCIES MISSING, NO RESULTS", rule]
+    lines += [f"  ✗ {name}: {type(exc).__name__}: {exc}" for name, exc in _missing_deps]
+    lines += [
+        "",
+        "  The analyzer needs spaCy with en_core_web_sm, textstat and lexicalrichness.",
+        "  Fix with uv (zero setup): brew install uv, then run tools/slopometer",
+        "  Fix with pip: pip install -r tools/requirements.txt && python -m spacy download en_core_web_sm",
+        rule,
+    ]
     return "\n".join(lines)
 
 
@@ -899,6 +1358,7 @@ def main():
     parser.add_argument("--file", type=str, help="Read from file instead of stdin")
     args = parser.parse_args()
 
+    # Exit codes: 1 missing input file, 2 bad arguments (argparse), 3 missing dependencies.
     if args.file:
         try:
             with open(args.file) as fh:
@@ -908,6 +1368,12 @@ def main():
             sys.exit(1)
     else:
         text = sys.stdin.read()
+
+    # Read input first: a caller that writes stdin before reading stderr
+    # deadlocks on macOS pipes if we exit with the banner unread.
+    if _missing_deps:
+        print(_missing_deps_banner(), file=sys.stderr)
+        sys.exit(3)
 
     result = analyze_text(text)
 

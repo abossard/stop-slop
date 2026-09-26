@@ -1,7 +1,7 @@
 ---
 name: stop-slop
-description: Remove AI writing patterns from prose. Use when drafting, editing, or reviewing text to eliminate predictable AI tells.
-when_to_use: "When writing, editing, or reviewing prose and you want to catch and remove predictable AI writing patterns like filler phrases, structural clichés, and rhythm issues."
+description: Remove AI tells and unclear writing. Use when you write or review text, make text clearer, or review a diagram or table.
+when_to_use: "When prose has filler, clichés or rhythm issues, when text should be clearer, or when a diagram or table needs review."
 ---
 
 # Stop Slop
@@ -10,17 +10,17 @@ Eliminate predictable AI writing patterns from prose.
 
 ## Core Rules
 
-1. **Cut filler phrases.** Remove throat-clearing openers, emphasis crutches, and all adverbs. See [references/phrases.md](../../references/phrases.md).
+1. **Cut filler phrases.** Remove throat-clearing openers, emphasis crutches, empty intensifiers and assertion adverbs. See [references/phrases.md](../../references/phrases.md).
 
 2. **Break formulaic structures.** Avoid binary contrasts, negative listings, dramatic fragmentation, rhetorical setups, false agency. See [references/structures.md](../../references/structures.md).
 
-3. **Use active voice.** Every sentence needs a human subject doing something. No passive constructions. No inanimate objects performing human actions ("the complaint becomes a fix").
+3. **Name the actor.** Whoever acts is the subject. Use passive only when the thing acted on is the topic.
 
 4. **Be specific.** No vague declaratives ("The reasons are structural"). Name the specific thing. No lazy extremes ("every," "always," "never") doing vague work.
 
 5. **Put the reader in the room.** No narrator-from-a-distance voice. "You" beats "People." Specifics beat abstractions.
 
-6. **Vary rhythm.** Mix sentence lengths. Two items beat three. End paragraphs differently. No em dashes.
+6. **Short sentences, varied rhythm.** Average 15 to 20 words. Uniform lengths are an AI tell. End paragraphs differently. No em dashes.
 
 7. **Trust readers.** State facts directly. Skip softening, justification, hand-holding.
 
@@ -30,25 +30,32 @@ Eliminate predictable AI writing patterns from prose.
 
 10. **Don't label importance, show it.** "Load-bearing," "decisive," "the key insight," "not optional" all mean "this matters" without saying why. Name the consequence instead.
 
-11. **Say it once.** Claim, then aphorism, then importance label states one fact three times. Keep the claim.
+11. **Say it once.** Claim, then aphorism, then importance label states one fact three times. Keep the claim. Two items beat three. Lists and comparisons keep every real item and may repeat wording.
+
+12. **Length follows information.** A three-character fix gets one sentence.
+
+13. **Describe what the thing does.** Your instructions stay in the chat.
+
+14. **Overview first, details after.**
+
+15. **Use plain words.** See Plain Words in phrases.md.
 
 ## Quantitative check
 
-Before delivering prose longer than ~100 words, run the slopometer for hard numbers:
+Before delivering prose longer than ~100 words, run the slopometer:
 
-- Command: `tools/slopometer --json` (reads stdin, writes JSON to stdout)
-- Runner: prefers `uv run` (zero-setup via PEP 723 inline deps); falls back to `python3` with a stderr hint when `uv` is missing
+- Command: `tools/slopometer --json` (reads stdin)
 - Parse with `jq` — never `grep`/`sed` over JSON
+- Exit 3: show the user the banner and stop; estimate no metrics.
 
-Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate, findings[]) to prioritize edits, then re-run after revision.
+Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate, findings[], visual_findings[]) to prioritize edits, then re-run after revision.
 
 ## Quick Checks
 
 Before delivering prose:
 
-- Any adverbs? Kill them.
-- Any passive voice? Find the actor, make them the subject.
-- Inanimate thing doing a human verb ("the decision emerges")? Name the person.
+- Empty intensifier or assertion adverb ("really," "exactly," "actually," "cleanly")? Delete it.
+- Passive with no actor, or a thing doing a human verb ("the decision emerges")? Name who does it.
 - Sentence starts with a Wh- word? Restructure it.
 - Any "here's what/this/that" throat-clearing? Cut to the point.
 - Any "not X, it's Y" contrasts? State Y directly.
@@ -61,21 +68,30 @@ Before delivering prose:
 - Sentence ends in ", not merely X" or ", not just Y"? Cut the tail.
 - "Load-bearing," "decisive," "the crux," "not optional"? Replace with the consequence.
 - "Deliberately," "intentionally," "by design"? Every choice was. State the mechanism.
-- Adverb asserting you checked ("exactly," "actually," "correctly," "cleanly")? Delete it.
 - "Silently"? Only if you checked for the log line, the warning and the exit code. Otherwise drop it.
 - Telling the reader something doesn't matter ("inert," "no-op," "cosmetic," "harmless," "dead code")? Say what reads it.
 - Bold phrase followed by an em-dash? Split into two sentences, drop the bold.
 - Paragraph opens with a bold label and a colon? Prose doesn't need field names.
 - Two or more parentheticals in one sentence? Move the evidence to the end.
-- Sentence past 40 words? Find the second verb and start over there.
+- Sentence past 25 words? Find the second verb and start over there.
 - Rating your own work ("clean," "surgical," "robust," "elegant")? Give the number instead.
 - Reply opens with "You're right" or "Good catch"? The correction shows it.
 - Asking yourself a question in quotes before answering it? Delete the question.
 - "Three X, each closed/covered/measured"? Drop the count and the grade, keep the list.
+- Zombie nouns ("the configuration of")? Use the verb.
+- Trailing ", ensuring X"? Cut it or make it a sentence.
+- Subject and verb 10+ words apart? Move them together.
+
+Visuals: choose and review them with [references/visuals.md](../../references/visuals.md).
+
+- Visual restates the prose? Cut it.
+- Mermaid over 20 nodes, labels over 7 words, or subgraphs over 2 deep? Split and shorten.
+- Emoji on a heading, bullet or diagram node? Delete it.
+- Three steps in one paragraph? Number them.
 
 ## 🏆 Wall of Shame
 
-When reviewing or diagnosing prose, surface the most ridiculous AI slop you found. Pick up to 3 worst offenders — real sentences from the text. Skip this section if the text has no clear offenders. Do not invent examples.
+When reviewing or diagnosing prose, surface the most ridiculous AI slop you found. Pick up to 3 worst offenders, quoted from the text. Skip this section if the text has no clear offenders. Do not invent examples.
 
 For each offender, tag it with one emoji and a one-line roast. Roast the sentence, not the writer.
 
@@ -87,17 +103,12 @@ For each offender, tag it with one emoji and a one-line roast. Roast the sentenc
 | 🪞 | Self-referential — the text talks about itself |
 | 🫠 | Cringe filler — adds nothing, sounds desperate to fill space |
 | 🦜 | Parrot — repeats the same idea in slightly different words |
+| 🖼️ | Decorative visual: a diagram or table that restates the prose, or an emoji used as ornament |
 
 **Format:**
 
 > 🤖 "This comprehensive guide provides a detailed overview of the key considerations."
 > → It's a list, not a comprehensive guide. Say what it covers.
->
-> 💀 "It's important to note that security plays a crucial role."
-> → Everything in a security doc is important to note. Cut the throat-clearing.
->
-> 🎭 "In an era of unprecedented digital transformation, organizations must navigate..."
-> → Nobody talks like this. Say what changed and what to do about it.
 
 ## Scoring
 
@@ -110,32 +121,13 @@ Rate 1-10 on each dimension:
 | Trust | Respects reader intelligence? |
 | Authenticity | Sounds human? |
 | Density | Anything cuttable? |
+| Visual fit | Does each visual add information the prose lacks? |
 
-Below 35/50: revise.
+Below 42/60: revise.
 
 ## Examples
 
-See [references/examples.md](../../references/examples.md) for before/after transformations.
-
-## Research References
-
-Signals and thresholds in this skill are backed by peer-reviewed and practitioner research:
-
-| Source | Signal | Citation |
-|--------|--------|----------|
-| Kobak et al. (2025) | AI vocabulary excess words, frequency ratios | *Science Advances* Vol.11 No.27; arXiv:2406.07016 |
-| Opara (StyloAI, 2024) | TTR, hapax legomena ratio as top-4 features; contraction count | AIED 2024; arXiv:2405.10129 |
-| Mahapatra (2026) | Language entropy collapse, punctuation suppression, distinct-N | arXiv:2605.28826 |
-| Przystalski et al. (2025) | Stylometric features on short texts (10 sentences), grammatical standardization | *Expert Systems with Applications* 296; arXiv:2507.00838 |
-| Ochab et al. (StylOch, 2025) | POS n-gram frequencies, dependency parse features | arXiv:2507.12064 |
-| Aityan et al. (NEULIF, 2025) | Stylometric + readability features achieve 97% accuracy with 25MB CNN | arXiv:2511.21744 |
-| chepdor2-ai/humara-s-clean-canvas | Calibrated thresholds for burstiness, Yule's K, hapax ratio, Guiraud's R | github.com/chepdor2-ai/humara-s-clean-canvas |
-| Retengart/entropy-analysis | Yule's K, MTLD, burstiness B-index formulas | github.com/Retengart/entropy-analysis |
-
-Key findings:
-- **Top 4 discriminating features** (Opara 2024): UniqueWordCount, StopWordCount, TTR, HapaxLegomenonRate
-- **Kobak "common 10" words** whose aggregate frequency predicts LLM use: across, additionally, comprehensive, crucial, enhancing, exhibited, insights, notably, particularly, within
-- **LLM text has collapsed entropy** (Mahapatra 2026): 1,949–16,853% amplification of certain patterns, complex punctuation suppressed to 3.2–23.2% of baseline
+See [references/examples.md](../../references/examples.md) for before/after pairs and Wall of Shame entries.
 
 ## License
 

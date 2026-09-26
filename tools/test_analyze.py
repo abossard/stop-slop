@@ -125,6 +125,64 @@ COMMON10_TEXT = (
 # Exactly two em dashes (C10)
 EM_DASH_TEXT = "The build broke — twice — before lunch."
 
+REAL_BEFORE_AFTER_PAIRS = [
+    (
+        "pair 1",
+        "Trigger: the coherent task or session boundary has been reached with no active criteria and no blocking issue, or the user explicitly requested extract. It turns raw outcomes into durable knowledge under `raw/`, `wiki/`, and `schema.md`.",
+        "Turn this task's raw outcomes into durable knowledge under `raw/`, `wiki/`, and `schema.md`. Terminal phase, runs at most once.",
+    ),
+    (
+        "pair 2",
+        "The current pull request gives every child model one healthy dummy entity to confirm the deployment succeeded. The diagram labels that entity as a deployment check because it does not measure domain health. Replace it with the platform and system flows the domain provides.",
+        "Add monitoring signals to each child model before using its state to assess domain health.",
+    ),
+    (
+        "pair 3",
+        "For each ALZ domains you might create a specific health model that represents the system flows of that domain, with the resources that contribute to it. You can use a mix of manually build entities and modelling and combine it with discovery rules for places where you don't control the life cycle of the contributing resources.",
+        "Combine manually modeled entities with discovery rules where resources change often. Split paths that fail independently, set the rollup behavior on each parent entity, then set an objective on the root.",
+    ),
+    (
+        "pair 9",
+        textwrap.dedent("""\
+            - Tick `[x]` on the criterion when its test goes green. **Do this immediately. Do not batch check-offs for later.**
+            - Paste raw shortened evidence (command output, test result, key lines) directly under the criterion line. Every `[x]` must have its proof inline — a checkmark without evidence is not a checkmark.
+            - If you resolve an unknown during implementation, add it to the Decisions table with its VOI level and source.
+            - If you discover a requirement not in the original EARS, note it but do NOT add it to the criteria. That's review's job.
+            - Work only on the current correction's active criteria. Archived criteria remain out of scope unless the blueprint marks their baseline proof invalidated.
+        """).strip(),
+        textwrap.dedent("""\
+            - Tick `[x]` the moment its test goes green. **Do not batch check-offs for later.**
+            - Paste raw shortened evidence (command output, test result, key lines) directly under the criterion line. A checkmark without inline proof is not a checkmark.
+            - Add any unknown you resolved to the Decisions table with its VOI level and source.
+            - Note a requirement you discover outside the original EARS, and leave it out of the criteria. Inspect owns that call.
+            - Work only on the current correction's active criteria. Archived criteria stay out of scope unless the blueprint marks their baseline proof invalidated.
+        """).strip(),
+    ),
+    (
+        "pair 13",
+        "What it does not carry is dependency. Every alert rule is deployed independently of every other one, so nothing in the system knows that an ExpressRoute circuit, a firewall and a gateway are three parts of one connectivity service. Three alerts fire, and a human decides whether that adds up to an outage.",
+        "AMBA-ALZ does not model dependencies between alert rules. An ExpressRoute circuit, a firewall, and a gateway can support one connectivity service, but their alerts remain independent. An operator must assess their combined effect.",
+    ),
+    (
+        "pair 14",
+        textwrap.dedent("""\
+            - **Fewer alerts, not fewer measurements.** Alerting moves from every rule to the entities you decide matter, so notification volume tracks the number of real problems rather than the size of the estate.
+            - **Criticality is expressed once, in the graph.** A dependency says which components a service actually needs, so importance comes from position in the graph instead of a severity set per rule.
+            - **Recovery is visible, and measurable.** You see when something clears, and how long it was broken.
+        """).strip(),
+        textwrap.dedent("""\
+            - **Consolidated alerts.** Multiple signals determine one entity state. An alert on that entity fires once when its state changes to degraded or unhealthy.
+            - **Explicit dependencies.** Relationships describe which components a service depends on and how their health affects the parent entity.
+            - **Health history.** Graph and timeline views show current and past entity states.
+        """).strip(),
+    ),
+    (
+        "pair 15",
+        "`harvest` also reads the persisted task brief's Decisions table and \"Discovered during review\" section to learn what categories of criteria the EARS consistently misses — that meta-learning feeds the director's process memory and sharpens future EARS nudges.",
+        "`harvest` also reads the persisted task brief's Decisions table and \"Discovered during review\" section to learn what categories of criteria the EARS consistently misses. That meta-learning feeds the director's process memory and sharpens future EARS nudges.",
+    ),
+]
+
 # Same clause skeleton repeated: high POS n-gram template rate (C8)
 TEMPLATED_TEXT = (
     "The system processes the input data quickly. "
@@ -237,6 +295,477 @@ class TestFindings:
         ai_result = analyze_module.analyze_text(AI_TEXT)
         human_result = analyze_module.analyze_text(HUMAN_TEXT)
         assert len(human_result["findings"]) < len(ai_result["findings"])
+
+
+class TestMarkdownSplitter:
+    """Markdown block boundaries shape prose metrics."""
+
+    @pytest.mark.parametrize(
+        "text,expected_sentences,expected_words",
+        [
+            ("# Setup\nInstall the package.\nRun tests.", 3, 6),
+            ("- Install dependencies\n- Run tests", 2, 4),
+            ("> Quote here\nNormal line", 2, 4),
+            ("| key | value |\n| a | b |\n\nThe prose stays.", 1, 3),
+            ("Before text.\n```python\nprint('hello world')\n```\nAfter text.", 2, 4),
+            ("This sentence wraps\nacross one newline before it ends.", 1, 9),
+            ("1. Stop the worker.\n2. Restart it.\n3. Check logs.", 3, 7),
+            ("- `--json`\n- `--file`\n- https://example.com/a/b\n\n## `analyze.py`\n\n"
+             "The tool reads input from stdin today.", 1, 7),
+        ],
+    )
+    def test_markdown_boundaries(self, analyze_module, text, expected_sentences, expected_words):
+        result = analyze_module.analyze_text(text)
+        assert result["sentence_count"] == expected_sentences
+        assert result["word_count"] == expected_words
+
+    @pytest.mark.parametrize("text", [
+        "1. Stop the worker.",
+        "> 1. Quoted step one.\n> 2. Quoted step two.",
+        "- `--json`\n- https://example.com/a/b\n\nThe tool reads input from stdin today.",
+    ], ids=["ordered-marker", "quoted-ordered-marker", "code-only-items"])
+    def test_no_empty_sentences(self, analyze_module, text):
+        """C5-4 - markers and code-only blocks never become sentences."""
+        result = analyze_module.analyze_text(text)
+        assert result["sentence_length_min"] > 0
+
+    def test_hard_wrapped_bullet_is_one_sentence(self, analyze_module):
+        """C4-9 - a continuation line stays in its list item."""
+        text = "- " + " ".join(["alpha"] * 15) + "\n  " + " ".join(["beta"] * 15) + "."
+        result = analyze_module.analyze_text(text)
+        assert result["sentence_count"] == 1
+        assert result["long_sentence_count"] == 1
+
+
+class TestLongSentences:
+    """C0-2 - sentences over 25 words are flagged."""
+
+    def test_25_words_not_flagged(self, analyze_module):
+        text = " ".join(["alpha"] * 25) + "."
+        result = analyze_module.analyze_text(text)
+        assert result["long_sentence_count"] == 0
+        assert not any("Long sentence" in i for i in _issues_of(result))
+
+    def test_26_words_flagged(self, analyze_module):
+        text = " ".join(["alpha"] * 26) + "."
+        result = analyze_module.analyze_text(text)
+        assert result["long_sentence_count"] == 1
+        assert any("Long sentence (26 words)" == i for i in _issues_of(result))
+
+
+class TestPlainWordSwaps:
+    """C0-3 - plain alternatives are reported once."""
+
+    @pytest.mark.parametrize(
+        "text,issue",
+        [
+            ('We utilize the cache.', 'Plain word: "utilize" -> "use"'),
+            ('The job utilizes the cache.', 'Plain word: "utilizes" -> "use"'),
+            ('The cache was Utilized today.', 'Plain word: "Utilized" -> "use"'),
+            ('Run this in order to finish.', 'Plain word: "in order to" -> "to"'),
+            ('It failed due to the fact that the disk filled.', 'Plain word: "due to the fact that" -> "because"'),
+            ('Stop the worker prior to deploy.', 'Plain word: "prior to" -> "before"'),
+        ],
+    )
+    def test_plain_swaps_flagged(self, analyze_module, text, issue):
+        result = analyze_module.analyze_text(text)
+        assert issue in _issues_of(result)
+
+    def test_plain_words_not_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(
+            "We use the cache to finish because the disk filled before lunch."
+        )
+        assert not any("Plain word:" in i for i in _issues_of(result))
+
+    def test_swap_list_has_no_ai_vocabulary(self, analyze_module):
+        """One word yields one issue: AI-list words stay out of the swap list."""
+        assert set(analyze_module.PLAIN_SWAPS) & analyze_module.ALL_AI_WORDS == set()
+
+    def test_every_swap_listed_in_phrases_reference(self, analyze_module):
+        """C0-15 - references/phrases.md lists the whole swap list."""
+        phrases = (Path(__file__).parent.parent / "references" / "phrases.md").read_text()
+        assert "## Plain Words" in phrases
+        section = phrases.split("## Plain Words", 1)[1].split("\n## ", 1)[0]
+        missing = [w for w in analyze_module.PLAIN_SWAPS if f"| {w} |" not in section]
+        assert missing == []
+
+
+class TestNonProseMasking:
+    """C4-3 - link targets, bare URLs and inline code are not prose."""
+
+    URL = "https://example.com/" + "/".join(f"segment{i}" for i in range(26))
+
+    @pytest.mark.parametrize("template", [
+        "Read [the guide]({url}) before you start the migration next week, please.",
+        "Read the guide {url} before you start the migration next week, please.",
+    ], ids=["markdown-link", "bare-url"])
+    def test_url_is_not_prose(self, analyze_module, template):
+        result = analyze_module.analyze_text(template.format(url=self.URL))
+        assert result["long_sentence_count"] == 0
+        assert result["word_count"] == 11
+
+    @pytest.mark.parametrize("text", [
+        "`template_rate` is reported without a threshold.",
+        "We utilize the pool, see https://example.com/pool/docs",
+    ], ids=["leading-code", "trailing-url"])
+    def test_findings_show_original_sentence(self, analyze_module, text):
+        """C5-3 - masked code and URLs stay visible in findings."""
+        result = analyze_module.analyze_text(text)
+        assert [f["sentence"] for f in result["findings"]] == [text]
+
+    @pytest.mark.parametrize("text,flagged,words", [
+        ("Call `utilize()` on the pool.", False, 4),
+        ("We utilize the pool.", True, 4),
+    ])
+    def test_inline_code_is_not_prose(self, analyze_module, text, flagged, words):
+        result = analyze_module.analyze_text(text)
+        assert any("Plain word:" in i for i in _issues_of(result)) is flagged
+        assert result["word_count"] == words
+
+
+class TestNominalizations:
+    """C0-4 - stacked zombie nouns are flagged."""
+
+    def test_nominalization_stack_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(
+            "The implementation of the configuration requires the utilization of resources."
+        )
+        assert result["nominalization_density"] > 0
+        assert any(
+            i == "Nominalizations: implementation, configuration, utilization"
+            for i in _issues_of(result)
+        )
+
+    @pytest.mark.parametrize("text", [
+        "We configured the service and deployed it twice.",
+        "The configuration file lives in /etc.",
+        "The sentence in this section cites the reference and its evidence.",
+        "The references in each section give evidence for every sentence.",
+    ])
+    def test_nominalization_controls(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert not any("Nominalizations:" in i for i in _issues_of(result))
+
+
+class TestAgentlessPassive:
+    """C0-5 - only passive clauses without actors are findings."""
+
+    def test_agentless_passive_flagged(self, analyze_module):
+        result = analyze_module.analyze_text("The bug was discovered during testing.")
+        assert "Passive voice with no actor: name who does it" in _issues_of(result)
+
+    def test_passive_with_agent_not_flagged(self, analyze_module):
+        result = analyze_module.analyze_text("The report was written by the team.")
+        assert result["passive_voice_rate"] == 1.0
+        assert not any("Passive voice with no actor" in i for i in _issues_of(result))
+
+
+class TestMaskedPassive:
+    """C5-2 - a passive counts only when its head verb is in the same sentence."""
+
+    README_156 = (
+        "`template_rate` is reported without a threshold. It is **not length-invariant**:\n"
+        "on one human-written corpus it measured 0.13 at 150 words and 0.61 at 28,000\n"
+        "words, because longer texts give every POS n-gram more chances to recur. Compare\n"
+        "it only between texts of similar length. `pos_token_count` is reported alongside\n"
+        "it so you can tell whether two numbers are comparable."
+    )
+
+    def test_imperative_after_code_led_sentence_not_passive(self, analyze_module):
+        result = analyze_module.analyze_text(self.README_156)
+        compare = [f for f in result["findings"] if f["sentence"].startswith("Compare")]
+        assert not any("Passive voice" in i for f in compare for i in f["issues"])
+        passive = [f["sentence"] for f in result["findings"] if any("Passive voice" in i for i in f["issues"])]
+        assert any(s.startswith("`template_rate`") for s in passive)
+
+
+class TestTrailingIngClause:
+    """C0-6 - trailing present-participle clauses are flagged."""
+
+    @pytest.mark.parametrize(
+        "text,clause",
+        [
+            ("We shipped the patch, ensuring consistency across all regions.", "ensuring consistency"),
+            ("The config is validated, highlighting the importance of careful review.", "highlighting the importance"),
+        ],
+    )
+    def test_trailing_ing_flagged(self, analyze_module, text, clause):
+        result = analyze_module.analyze_text(text)
+        assert any(f'Trailing -ing clause: "{clause}"' in i for i in _issues_of(result))
+
+    @pytest.mark.parametrize("text", [
+        "Running the tests takes ten minutes.",
+        "We kept testing the parser.",
+        "After the release, using the new flag, we restarted the service.",
+    ])
+    def test_trailing_ing_controls(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert not any("Trailing -ing clause" in i for i in _issues_of(result))
+
+
+class TestSubjectVerbDistance:
+    """C0-7 - long subject to verb gaps are flagged."""
+
+    def test_far_subject_verb_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(
+            "The service, which was deployed last week by the operations team after several delays, crashed."
+        )
+        assert result["mean_dependency_distance"] is not None
+        assert any(
+            'Subject far from verb: "service" ... "crashed"' in i
+            for i in _issues_of(result)
+        )
+
+    def test_close_subject_verb_not_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(
+            "The service crashed after the operations team deployed it last week."
+        )
+        assert not any("Subject far from verb" in i for i in _issues_of(result))
+
+
+class TestReadabilityBattery:
+    """C0-8 - textstat metrics are additive JSON keys."""
+
+    def test_readability_keys_present(self, analyze_module):
+        result = analyze_module.analyze_text(AI_TEXT)
+        assert isinstance(result["smog_index"], (int, float))
+        assert isinstance(result["dale_chall_score"], (int, float))
+        assert isinstance(result["difficult_word_rate"], (int, float))
+
+    def test_empty_input_has_new_keys(self, analyze_module):
+        result = analyze_module.analyze_text("")
+        for key in [
+            "long_sentence_count",
+            "plain_swap_count",
+            "nominalization_density",
+            "mean_dependency_distance",
+            "smog_index",
+            "dale_chall_score",
+            "difficult_word_rate",
+        ]:
+            assert key in result
+
+    def test_human_output_mentions_formula_limits(self, analyze_module):
+        result = analyze_module.analyze_text(AI_TEXT)
+        output = analyze_module._format_human(result)
+        assert "quarter to a third" in output
+
+
+class TestCompletenessDenial:
+    """C0-9 - completeness denials are defensive negation."""
+
+    def test_completeness_denial_flagged(self, analyze_module):
+        result = analyze_module.analyze_text(
+            "This policy is one hardening step, not the complete fix for it."
+        )
+        assert any("Defensive negation" in i for i in _issues_of(result))
+
+    def test_plain_contrast_not_flagged(self, analyze_module):
+        result = analyze_module.analyze_text("Use the API, not the CLI.")
+        assert not any("Defensive negation" in i for i in _issues_of(result))
+
+
+def _visual_issues(result: dict) -> list[str]:
+    return [finding["issue"] for finding in result["visual_findings"]]
+
+
+def _total_issue_count(result: dict) -> int:
+    return sum(len(finding["issues"]) for finding in result["findings"]) + len(result["visual_findings"])
+
+
+def _mermaid_nodes(count: int) -> str:
+    lines = ["```mermaid", "flowchart TD"]
+    lines.extend(f"  n{i}[Node {i}]" for i in range(1, count + 1))
+    lines.append("```")
+    return "\n".join(lines)
+
+
+class TestMermaidVisuals:
+    """C1-2 - Mermaid diagram size and label checks."""
+
+    @pytest.mark.parametrize(
+        "node_count,expected",
+        [
+            (10, None),
+            (11, "Mermaid diagram has 11 nodes"),
+            (21, "Split Mermaid diagram"),
+        ],
+    )
+    def test_mermaid_node_count(self, analyze_module, node_count, expected):
+        result = analyze_module.analyze_text(_mermaid_nodes(node_count))
+        issues = _visual_issues(result)
+        if expected is None:
+            assert not any("Mermaid diagram" in issue for issue in issues)
+        else:
+            assert any(expected in issue for issue in issues)
+
+    @pytest.mark.parametrize(
+        "label,flagged",
+        [
+            ("one two three four five six seven", False),
+            ("one two three four five six seven eight", True),
+        ],
+    )
+    def test_mermaid_label_words(self, analyze_module, label, flagged):
+        text = f"```mermaid\nflowchart TD\n  A[{label}]\n```"
+        result = analyze_module.analyze_text(text)
+        has_label_issue = any("Mermaid label" in issue for issue in _visual_issues(result))
+        assert has_label_issue is flagged
+
+    @pytest.mark.parametrize(
+        "body,flagged",
+        [
+            ("subgraph A\nsubgraph B\nx[Node]\nend\nend", False),
+            ("subgraph A\nsubgraph B\nsubgraph C\nx[Node]\nend\nend\nend", True),
+        ],
+    )
+    def test_mermaid_subgraph_depth(self, analyze_module, body, flagged):
+        text = f"```mermaid\nflowchart TD\n{body}\n```"
+        result = analyze_module.analyze_text(text)
+        has_depth_issue = any("subgraph nesting" in issue for issue in _visual_issues(result))
+        assert has_depth_issue is flagged
+
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("```mermaid\nflowchart LR\n  " + " --> ".join(f"N{i}" for i in range(1, 26)) + "\n```",
+             "Split Mermaid diagram (25 nodes)"),
+            ("```mermaid\nflowchart TD\n  A --> B & C & D\n  B --> E & F\n  C --> G & H\n"
+             "  D --> I & J\n  E --> K & L\n  A --> L\n```", "Mermaid diagram has 12 nodes"),
+            ("~~~mermaid\nflowchart TD\n" + "\n".join(f"  n{i}[Node {i}]" for i in range(1, 13)) + "\n~~~",
+             "Mermaid diagram has 12 nodes"),
+            ("```mermaid\nflowchart TD\n" + "\n".join(f"  A{i % 10} -- yes --> A{(i + 1) % 10}" for i in range(30))
+             + "\n```", None),
+            ("```mermaid\nflowchart TD\n" + "\n".join(f"  n{i}((Node {i}))" for i in range(1, 22)) + "\n```",
+             "Split Mermaid diagram (21 nodes)"),
+            ("```mermaid\nflowchart TD\n" + "\n".join("  h" + str(i) + "{{Hex " + str(i) + "}}" for i in range(1, 22))
+             + "\n```", "Split Mermaid diagram (21 nodes)"),
+            ("```mermaid\nflowchart LR\n  A((circle)) --> B{{hex}} --> C(((dbl))) --> D>asym] --> E[/para/]"
+             " --> F[(db)] --> G([stad]) --> H[[sub]] --> I --> J --> K\n```", "Mermaid diagram has 11 nodes"),
+            ("```mermaid\nflowchart TD\n  A -- go --- B\n  B -- re-run --> C\n  C -->|go| D\n  D -. maybe .-> E\n"
+             "  E == yes ==> F\n  F --- G\n  G --> H\n  H --> I\n  I --> J\n```", None),
+        ],
+        ids=["bare-chain-25", "chained-edges-12", "tilde-fence-12", "repeated-ids-edge-text-10",
+             "circles-21", "hexagons-21", "mixed-shapes-11", "edge-text-10"],
+    )
+    def test_mermaid_unique_node_ids(self, analyze_module, text, expected):
+        """C4-2 - count unique IDs, bare or labelled, in either fence style."""
+        issues = _visual_issues(analyze_module.analyze_text(text))
+        if expected is None:
+            assert not any("Mermaid diagram" in issue for issue in issues), issues
+        else:
+            assert expected in issues, issues
+
+    def test_plan_summary_design_diagram_has_no_node_count_finding(self, analyze_module):
+        diagram = textwrap.dedent("""\
+            ```mermaid
+            flowchart TD
+              IN["input text"] --> SPLIT["_split_sentences<br/>markdown-aware, skips code fences"]
+              IN --> NLP["_spacy_analyze<br/>one parse"]
+              NLP --> MAP["tokens per sentence<br/>by char offset"]
+              SPLIT --> MAP
+              MAP --> DET["per-sentence detectors<br/>existing + long,<br/>plain word, nominalization"]
+              NLP --> DOC["doc metrics<br/>mean dependency distance"]
+              IN --> TS["textstat<br/>FKGL + SMOG + Dale-Chall"]
+              DET --> OUT["JSON / human report"]
+              DOC --> OUT
+              TS --> OUT
+              IN --> VIS["_detect_visuals<br/>mermaid, emoji, steps in prose, bold_density"]
+              VIS --> OUT
+            ```
+        """)
+        result = analyze_module.analyze_text(diagram)
+        assert not any("Mermaid diagram" in issue for issue in _visual_issues(result))
+
+
+class TestDecorativeEmoji:
+    """C1-3 - emoji as decoration is visual slop."""
+
+    @pytest.mark.parametrize("text", [
+        "## 🚀 Setup",
+        "- ✅ Done",
+        "```mermaid\nflowchart TD\n  A[✅ Done]\n```",
+    ])
+    def test_decorative_emoji_flagged(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert any("Emoji as decoration" in issue for issue in _visual_issues(result))
+
+    def test_running_text_emoji_not_flagged(self, analyze_module):
+        result = analyze_module.analyze_text("Ship it 🎉 today.")
+        assert not any("Emoji as decoration" in issue for issue in _visual_issues(result))
+
+
+class TestBoldDensity:
+    """C1-4 - bold spans are a metric only."""
+
+    def test_bold_density(self, analyze_module):
+        result = analyze_module.analyze_text("**Bold** plain words here. __Strong__ more prose now.")
+        assert result["bold_density"] == 25.0
+        assert result["visual_findings"] == []
+
+    def test_empty_bold_density(self, analyze_module):
+        assert analyze_module.analyze_text("")["bold_density"] == 0
+
+    @pytest.mark.parametrize("text", [
+        "Plain words here.\n```python\nx = a**b**c\n```",
+        "Pass `**kwargs**` to the call.",
+        "Override __init__ and __repr__ in the class.",
+    ], ids=["fence", "inline-code", "dunder"])
+    def test_bold_density_ignores_code(self, analyze_module, text):
+        """C4-8 - only prose bold counts."""
+        assert analyze_module.analyze_text(text)["bold_density"] == 0
+
+
+class TestStepsInProse:
+    """C1-5 - dense sequences belong in numbered lists."""
+
+    def test_steps_in_prose_flagged(self, analyze_module):
+        text = "First, stop the worker, then clear the queue. Next, restart it. Finally, check logs."
+        result = analyze_module.analyze_text(text)
+        assert any("Steps in prose: use a numbered list" in issue for issue in _visual_issues(result))
+
+    def test_two_markers_not_flagged(self, analyze_module):
+        result = analyze_module.analyze_text("First, stop the worker, then restart it.")
+        assert not any("Steps in prose" in issue for issue in _visual_issues(result))
+
+    def test_numbered_list_not_flagged(self, analyze_module):
+        text = "1. First, stop the worker.\n2. Then restart it.\n3. Finally, check logs."
+        result = analyze_module.analyze_text(text)
+        assert not any("Steps in prose" in issue for issue in _visual_issues(result))
+
+
+class TestVisualFindingsContract:
+    """C1-7 - visual findings use source line numbers."""
+
+    def test_empty_and_plain_prose_visual_findings(self, analyze_module):
+        assert analyze_module.analyze_text("")["visual_findings"] == []
+        assert analyze_module.analyze_text("Plain prose only.")["visual_findings"] == []
+
+    def test_visual_findings_shape_and_line(self, analyze_module):
+        result = analyze_module.analyze_text("\nIntro.\n## 🚀 Setup")
+        assert result["visual_findings"] == [
+            {"line": 3, "kind": "emoji", "issue": "Emoji as decoration"}
+        ]
+
+    def test_human_output_prints_visual_findings(self, analyze_module):
+        result = analyze_module.analyze_text(_mermaid_nodes(11))
+        output = analyze_module._format_human(result)
+        assert "Visual findings" in output
+
+
+class TestRealBeforeAfterRegression:
+    """C0-11 - real owner edits should reduce issue counts."""
+
+    def test_regression_set_has_at_least_six_pairs(self):
+        assert len(REAL_BEFORE_AFTER_PAIRS) >= 6
+
+    @pytest.mark.parametrize("pair_id,before,after", REAL_BEFORE_AFTER_PAIRS)
+    def test_before_has_more_issues_than_after(self, analyze_module, pair_id, before, after):
+        before_count = _total_issue_count(analyze_module.analyze_text(before))
+        after_count = _total_issue_count(analyze_module.analyze_text(after))
+        assert before_count > after_count, (
+            f"{pair_id}: before={before_count}, after={after_count}"
+        )
 
 
 class TestEdgeCases:
@@ -698,8 +1227,6 @@ class TestSyntacticTemplates:
     """C8/C9 — POS n-gram templates (Shaib et al. arXiv:2407.00211)."""
 
     def test_templated_text_scores_higher_than_varied(self, analyze_module):
-        if not analyze_module.HAS_SPACY:
-            pytest.skip("spaCy not available")
         templated = analyze_module.analyze_text(TEMPLATED_LONG_TEXT)
         varied = analyze_module.analyze_text(VARIED_LONG_TEXT)
         assert templated["syntactic_templates"] is not None
@@ -726,8 +1253,6 @@ class TestSpacySinglePass:
     """C13 — one spaCy invocation per analyzed input."""
 
     def test_spacy_single_pass(self, analyze_module, monkeypatch):
-        if not analyze_module.HAS_SPACY:
-            pytest.skip("spaCy not available")
         calls = {"n": 0}
         real = analyze_module._nlp
 
@@ -799,6 +1324,29 @@ class TestCLI:
         assert data["word_count"] == 0
 
 
+class TestMissingDependencies:
+    """C3-1 - a missing dependency stops the CLI with a banner and exit 3."""
+
+    @pytest.mark.parametrize("module", ["spacy", "en_core_web_sm", "textstat", "lexicalrichness"])
+    @pytest.mark.parametrize("mode", [["--json"], []], ids=["json", "human"])
+    def test_banner_and_exit_3(self, tmp_path, module, mode):
+        shim = tmp_path / module
+        shim.mkdir()
+        (shim / "__init__.py").write_text(f"raise ImportError('test shim: {module} removed')\n")
+        env = dict(os.environ, PYTHONPATH=str(tmp_path))
+        proc = subprocess.run(
+            [sys.executable, TOOL, *mode],
+            input=AI_TEXT, capture_output=True, text=True, timeout=60, env=env,
+        )
+        assert proc.returncode == 3, f"stdout: {proc.stdout[:200]!r} stderr: {proc.stderr!r}"
+        assert proc.stdout == ""
+        assert module in proc.stderr
+        assert "test shim" in proc.stderr
+        assert "brew install uv" in proc.stderr
+        assert "python -m spacy download en_core_web_sm" in proc.stderr
+        assert len(proc.stderr.strip().splitlines()) >= 4
+
+
 # ---------------------------------------------------------------------------
 # Wrapper integration tests (tools/slopometer)
 # ---------------------------------------------------------------------------
@@ -817,6 +1365,13 @@ def _path_without(binary: str) -> str:
         if not (os.path.isfile(candidate) and os.access(candidate, os.X_OK)):
             keep.append(entry)
     return os.pathsep.join(keep)
+
+
+def _python3_has_deps(env: dict) -> bool:
+    probe = "import spacy, textstat, lexicalrichness; spacy.load('en_core_web_sm')"
+    return subprocess.run(
+        ["python3", "-c", probe], env=env, capture_output=True, timeout=120,
+    ).returncode == 0
 
 
 @pytest.mark.parametrize(
@@ -845,8 +1400,17 @@ class TestWrapper:
             input=AI_TEXT, capture_output=True, text=True,
             timeout=300, env=env,
         )
-        assert proc.returncode == 0, f"stderr: {proc.stderr}"
         assert expected_runner in proc.stderr, f"stderr was: {proc.stderr!r}"
+        # C3-3: the python3 path has no degraded mode. This machine's
+        # Homebrew python3 lacks spaCy, so the banner branch is the one it hits.
+        if scenario == "python3-fallback":
+            assert "required" in proc.stderr, f"stderr was: {proc.stderr!r}"
+            if not _python3_has_deps(env):
+                assert proc.returncode == 3, f"stderr: {proc.stderr}"
+                assert proc.stdout == ""
+                assert "REQUIRED DEPENDENCIES MISSING" in proc.stderr
+                return
+        assert proc.returncode == 0, f"stderr: {proc.stderr}"
         data = json.loads(proc.stdout)
         assert "burstiness" in data
         assert "findings" in data
@@ -856,6 +1420,24 @@ class TestWrapper:
         new_keys = {"signature_markers", "tier2_density", "kobak_common10_density",
                     "em_dash_count", "syntactic_templates"}
         assert new_keys.issubset(data.keys()), f"missing: {new_keys - data.keys()}"
+
+
+def test_wrapper_emits_clarity_and_visual_keys():
+    if shutil.which("uv") is None and shutil.which("python3") is None:
+        pytest.skip("no wrapper runner available")
+
+    proc = subprocess.run(
+        [WRAPPER, "--json"],
+        input=AI_TEXT, capture_output=True, text=True, timeout=300,
+    )
+    assert proc.returncode == 0, f"stderr: {proc.stderr}"
+    data = json.loads(proc.stdout)
+    new_keys = {
+        "long_sentence_count", "plain_swap_count", "nominalization_density",
+        "mean_dependency_distance", "smog_index", "dale_chall_score",
+        "difficult_word_rate", "visual_findings", "bold_density",
+    }
+    assert new_keys.issubset(data.keys()), f"missing: {new_keys - data.keys()}"
 
 
 def test_wrapper_no_runners_exits_nonzero(tmp_path):

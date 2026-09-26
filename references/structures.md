@@ -94,7 +94,7 @@ Floating above the scene instead of putting the reader in it.
 
 ## Passive Voice
 
-Every sentence needs a subject doing something. Passive voice hides the actor and drains energy.
+Name the actor. A passive with no "by" phrase hides who acted; `tools/analyze.py` flags it as `Passive voice with no actor`.
 
 | Pattern | Fix |
 |---------|-----|
@@ -103,7 +103,7 @@ Every sentence needs a subject doing something. Passive voice hides the actor an
 | "Mistakes were made" | Name who made them |
 | "The decision was reached" | Name who decided |
 
-**Instead:** Find the actor. Put them at the front of the sentence.
+**Instead:** Find the actor. Put them at the front of the sentence. When the thing acted on is the paragraph's topic, keep the passive and name the actor in a "by" phrase.
 
 ## Sentence Starters to Avoid
 
@@ -131,7 +131,7 @@ Wh- openers become a crutch. "What makes this hard is..." becomes "The constrain
 | Pattern | Problem |
 |---------|---------|
 | Lazy extremes (every, always, never, everyone, everybody, nobody) | False authority. Use specifics instead of sweeping claims. |
-| All adverbs (-ly words, "really," "just," "literally," "genuinely," "honestly," "simply," "actually") | Empty emphasis. See phrases.md for full list. |
+| Empty intensifiers ("really," "just," "literally," "honestly," "simply") | Empty emphasis. See the Adverbs section of phrases.md for the full list. |
 
 ## Sycophantic Openers
 
@@ -300,3 +300,18 @@ Appending the reason the previous clause was written, in the same sentence.
 | "..., which is why C1-5 lands before C1-6" | New sentence, or cut |
 | "That is what proves the other three roots load-bearing" | State what the three roots do |
 | "..., so timeout and statement ceiling are the load-bearing limits" | "Only timeout and statement count limit the run." |
+
+## Compliance Narration
+
+Writing the instructions you received into the deliverable. The doc's reader never saw the instruction, so the rejected alternative answers a question they did not ask.
+
+The user had asked for pure functions and no state-machine framework. The agent then wrote this into the docs:
+
+> "The implementation uses records, enums, and pure functions instead of a general state-machine framework. The plan itself describes the states and dependencies."
+
+| Pattern | Fix |
+|---------|-----|
+| "uses X instead of Y" | "uses X", then say what X does |
+| "The plan itself describes..." / "the prompt requires..." | Describe the behavior itself |
+
+**Instead:** describe what the thing does. Name an alternative only in a decision record, when someone weighed it.

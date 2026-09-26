@@ -3,7 +3,7 @@
 # falling back to `python3 tools/analyze.py` if `uv` is missing.
 #
 # Stderr always reports `runner=<uv|python3>` so callers can verify the path.
-# Exits non-zero with a hint if neither runner can satisfy dependencies.
+# Exits 127 when neither runner exists; the analyzer exits 3 when dependencies are missing.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,7 +16,7 @@ fi
 
 if command -v python3 >/dev/null 2>&1; then
   echo "runner=python3" >&2
-  echo "hint: install \`uv\` (https://docs.astral.sh/uv/) for zero-setup runs, or \`pip install -r $HERE/requirements.txt && python -m spacy download en_core_web_sm\`." >&2
+  echo "hint: spaCy, en_core_web_sm, textstat and lexicalrichness are required; without them the analyzer prints a banner and exits 3. Install \`uv\` (https://docs.astral.sh/uv/) for zero-setup runs, or run \`pip install -r $HERE/requirements.txt && python -m spacy download en_core_web_sm\`." >&2
   exec python3 "$SCRIPT" "$@"
 fi
 

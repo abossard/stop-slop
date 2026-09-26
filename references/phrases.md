@@ -50,19 +50,64 @@ Replace with plain language.
 | Circle back | Return to, revisit |
 | On the same page | Aligned, agreed |
 
+## Plain Words
+
+Write the short common word. `tools/analyze.py` flags each left-hand entry as `Plain word`, in any case, with inflections of single words. Each entry comes from the [plainlanguage.gov Simple Words and Phrases](https://web.archive.org/web/20161223073724/http://www.plainlanguage.gov/howto/wordsuggestions/simplewords.cfm) list or the [Plain English Campaign A to Z of alternative words](https://web.archive.org/web/20200109034429/http://www.plainenglish.co.uk/files/alternative.pdf).
+
+| Instead of | Write |
+|------------|-------|
+| additional | more |
+| approximately | about |
+| assist | help |
+| attempt | try |
+| commence | start |
+| concerning | about |
+| currently | now |
+| demonstrate | show |
+| due to the fact that | because |
+| equivalent | equal |
+| establish | set up |
+| facilitate | help |
+| finalize | finish |
+| frequently | often |
+| however | but |
+| immediately | now |
+| implement | do |
+| in order to | to |
+| indicate | show |
+| initial | first |
+| modify | change |
+| nevertheless | but |
+| numerous | many |
+| objective | goal |
+| obtain | get |
+| perform | do |
+| persons | people |
+| prior to | before |
+| provide | give |
+| purchase | buy |
+| regarding | about |
+| requirement | need |
+| reside | live |
+| retain | keep |
+| subsequent to | after |
+| sufficient | enough |
+| terminate | end |
+| therefore | so |
+| utilization | use |
+| utilize | use |
+
 ## Adverbs
 
-Kill all adverbs. No -ly words. No softeners, no intensifiers, no hedges.
+Cut empty intensifiers and the assertion adverbs listed under [Assertion Adverbs](#assertion-adverbs). Keep an adverb that carries a fact the sentence needs: when, how often, or how ("retry twice," "rotate slowly").
 
-Specific offenders:
+Empty intensifiers:
 
 - "really"
 - "just"
 - "literally"
-- "genuinely"
 - "honestly"
 - "simply"
-- "actually"
 - "deeply"
 - "truly"
 - "fundamentally"
@@ -131,7 +176,7 @@ If a sentence says something is important/deep/structural without showing the sp
 
 Technical writing rarely contains "delve" or "tapestry." Its filler is "load-bearing," "not merely," "deliberately" and "exactly." Each of these defends a claim against doubt the reader never raised, and none of them adds a fact.
 
-**Method for every count below.** Two corpora: 1.82M words of assistant chat output (10,369 turns) and 1.02M words of engineering blueprints (265 markdown files). Fenced code blocks and injected skill context are stripped first. Sentences are split with `_split_sentences` from `tools/analyze.py`, so the shipped tool reproduces these figures: 87,261 chat sentences and 48,739 blueprint sentences. Word counts are case-insensitive with word boundaries. Both corpora are live and grow, so treat the proportions as the durable claim and the absolute counts as a snapshot.
+**Method for every count below.** Two corpora: 1.82M words of assistant chat output (10,369 turns) and 1.02M words of engineering blueprints (265 markdown files). Fenced code blocks and injected skill context are stripped first. The `_split_sentences` splitter in `tools/analyze.py` at commit `b287cc1` produced 87,261 chat sentences and 48,739 blueprint sentences. The markdown-aware splitter that replaced it counts differently. Word counts are case-insensitive with word boundaries. Both corpora are live and grow, so treat the proportions as the durable claim and the absolute counts as a snapshot.
 
 ### Importance Labels
 

@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-09-26
+
+### Added
+- `tools/analyze.py` flags sentences over 25 words, words with a plainer swap, stacked nominalizations and passives with no actor. It also flags an -ing clause that closes a sentence after a comma, and a subject 10 or more words from its verb. Defensive negation also catches completeness denials. New JSON keys report the counts: `long_sentence_count`, `plain_swap_count`, `nominalization_density`, `mean_dependency_distance`, `smog_index`, `dale_chall_score`, `difficult_word_rate`.
+- Visual checks flag big Mermaid diagrams, long node labels, deep subgraphs, emoji used as decoration and steps written as a paragraph. `visual_findings` lists them with source line numbers, and `bold_density` counts prose bold without a finding.
+- `references/visuals.md` says which content earns a diagram, table, list or prose, and lists the visual slop patterns.
+- `references/phrases.md` adds a Plain Words table. Each row comes from the plainlanguage.gov list or the Plain English Campaign A to Z. A test keeps the table in sync with the analyzer.
+- `references/structures.md` quotes the owner's real specimen of compliance narration and says what to write instead.
+- `references/examples.md` adds seven real before/after pairs from the owner's commits in public repositories, each with slopometer numbers. A regression test checks that every BEFORE yields more issues than its AFTER.
+- `skills/stop-slop/SKILL.md` adds four rules: length follows information, describe what the thing does, overview first, and plain words. It also adds quick checks for zombie nouns, -ing tails, subject-verb distance and visuals.
+- The Wall of Shame gains a 🖼️ row, and Scoring gains a Visual fit row that passes at 42/60.
+- The README Evidence section gives a source and an evidence level for each rule.
+
+### Changed
+- The sentence splitter ends a sentence at each markdown block boundary and skips fenced code. Headings, bullets and tables no longer merge into fake long sentences.
+- A list item keeps its wrapped lines, and an ordered-list number never forms a sentence of its own.
+- Inline code, link targets and bare URLs stay out of the word count and the sentence detectors. Link text still counts, and findings quote the sentence as written.
+- spaCy parses each input once, and every detector reads its tokens from that parse by character offset.
+- The adverb rule covers empty intensifiers and assertion adverbs, the two kinds the evidence supports cutting.
+- The passive rule asks you to name the actor and allows passive when the thing acted on is the topic.
+- `SKILL.md` frames sentence rhythm as an AI tell and asks for an average of 15 to 20 words, with a split past 25.
+- Research citations moved from `SKILL.md` to the README, so the skill carries instructions only.
+- The `SKILL.md` frontmatter triggers on requests to make text clearer and on diagram or table reviews.
+- The README example output shows real output of the analyzer, with the command that produced it.
+- The analyzer requires spaCy, `en_core_web_sm`, textstat and lexicalrichness. Without one of them it prints a banner on stderr and exits 3 instead of reporting degraded results. The `python3` wrapper hint names the four as required.
+
 ## 2026-08-11
 
 ### Added
@@ -12,7 +38,7 @@
 - Regression tests for two failure modes found in review: a sentence matching both negation detectors is reported once, and pathological whitespace completes in under two seconds.
 
 ### Changed
-- Frequency claims are measured over 1.82M words of assistant output (10,369 turns) and 1.02M words of blueprints (265 files), sentence-split with `_split_sentences` from `tools/analyze.py` so the shipped tool reproduces them: 87,261 and 48,739 sentences. Highest-volume tell is the em-dash bold clause at 15.2% of chat sentences.
+- Frequency claims are measured over 1.82M words of assistant output (10,369 turns) and 1.02M words of blueprints (265 files), sentence-split with `_split_sentences` from `tools/analyze.py` at commit `b287cc1`: 87,261 and 48,739 sentences. Highest-volume tell is the em-dash bold clause at 15.2% of chat sentences.
 - `not merely` / `not just` / `not only` added to the model-era signature marker table. It appears as a comma-framed tail at near-identical rates in both corpora (0.4% of blueprint sentences, 0.2% of chat), so the two are not compared.
 
 ### Fixed
