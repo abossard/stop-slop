@@ -2,7 +2,7 @@
 
 ## Binary Contrasts
 
-These create false drama. State the point directly.
+Formulaic contrasts create false drama. State the point directly.
 
 | Pattern | Problem |
 |---------|---------|
@@ -16,20 +16,24 @@ These create false drama. State the point directly.
 | "stops being X and starts being Y" | False transformation arc |
 | "doesn't mean X, but actually Y" | Negation-then-assertion crutch |
 | "is about X but not Y" | False distinction |
-| "not just X but also Y" | Additive hedge |
+| "not only X but also Y" / "not just X but also Y" | Additive: use "X and Y" |
 
-**Instead:** State Y directly. "The problem is Y." "Y matters here." Drop the negation entirely.
+**Instead:** State Y directly when the rejected X adds nothing for the reader. Keep contrasts needed for requested comparisons, safety warnings, factual scope limits, or correcting known reader misconceptions.
+
+Apply a user's correction to the subject; replace its superseded premise unless the reader needs the distinction:
+
+> "Catching Birds NOT with a Lasso, but with a Net" → "Catching Birds with a Net"
 
 ## Negative Listing
 
-Listing what something is *not* before revealing what it *is*. A rhetorical striptease.
+Rejected alternatives can add a factual limit or only delay the point.
 
 | Pattern | Problem |
 |---------|---------|
 | "Not a X... Not a Y... A Z." | Dramatic buildup through negation |
 | "It wasn't X. It wasn't Y. It was Z." | Same structure, past tense |
 
-**Instead:** State Z. The reader doesn't need the runway.
+**Instead:** Lead with Z. Keep factual exclusions; review them using [Binary Contrasts](#binary-contrasts).
 
 ## Dramatic Fragmentation
 
@@ -60,12 +64,12 @@ These announce insight rather than deliver it.
 
 | Pattern | Problem |
 |---------|---------|
-| "By the time X, I was Y." | Narrative template |
-| "X that isn't Y" | Indirect. Say "X is broken" |
+| "By the time X, I was Y." | Keep when it states timing; revise if it only frames a reveal. |
+| "X that isn't Y" | Keep a factual exclusion; otherwise name what X does. |
 
 ## False Agency
 
-Giving inanimate things human verbs. Complaints don't "become" fixes. Bets don't "live or die." Decisions don't "emerge." A person does something to make those things happen. AI loves this because it avoids naming the actor.
+When an abstraction hides who acts, name the actor. Software components are actors when they perform the stated action.
 
 | Pattern | Problem |
 |---------|---------|
@@ -77,20 +81,20 @@ Giving inanimate things human verbs. Complaints don't "become" fixes. Bets don't
 | "the data tells us" | Data sits there. Someone reads it and draws a conclusion. |
 | "the market rewards" | Markets don't reward. Buyers pay for things. |
 
-**Instead:** Name the human. "The team fixed it that week" beats "the complaint becomes a fix." If no specific person fits, use "you" to put the reader in the seat.
+**Instead:** Name who or what acts. "The team fixed it that week" beats "the complaint becomes a fix." Use "you" when the reader acts.
 
 ## Narrator-from-a-Distance
 
-Floating above the scene instead of putting the reader in it.
+When a summary hides who does what, name the actor and action. Keep explanations that identify an actual cause.
 
 | Pattern | Problem |
 |---------|---------|
 | "Nobody designed this." | Disembodied observation |
-| "This happens because..." | Lecturer voice |
-| "This is why..." | Same |
+| "This happens because..." | Keep when it explains the cause. |
+| "This is why..." | Keep a cause or consequence; cut an empty announcement. |
 | "People tend to..." | Armchair sociologist |
 
-**Instead:** Put the reader in the room. "You don't sit down one day and decide to..." beats "Nobody designed this."
+**Instead:** Name the actor and action. Use "you" only for the reader's actions; "You don't sit down one day and decide to..." needs that context.
 
 ## Passive Voice
 
@@ -109,17 +113,17 @@ Name the actor. A passive with no "by" phrase hides who acted; `tools/analyze.py
 
 | Pattern | Fix |
 |---------|-----|
-| Sentences starting with What, When, Where, Which, Who, Why, How | Restructure. Lead with the subject or the verb. |
+| Sentences starting with What, When, Where, Which, Who, Why, How | Keep conditions, causes, and direct questions; remove empty setups. |
 | Paragraphs starting with "So" | Start with content |
 | Sentences starting with "Look," | Remove |
 
-Wh- openers become a crutch. "What makes this hard is..." becomes "The constraint is..." or better, name the specific constraint.
+Keep openers that identify a condition or cause. "What makes this hard is..." becomes "The constraint is..." or better, name the specific constraint.
 
 ## Rhythm Patterns
 
 | Pattern | Fix |
 |---------|-----|
-| Three-item lists | Use two items or one |
+| Three-item lists | Keep every factual item; remove only padding or repetition. |
 | Questions answered immediately | Let questions breathe or cut them |
 | Every paragraph ends punchily | Vary endings |
 | Em-dashes | Remove. Use commas or periods. No em dashes at all. |
@@ -193,17 +197,19 @@ AI loves balanced, parallel structures — especially three items where each get
 
 ## Negation-as-Proof
 
-Stating what a thing does, then denying a weaker version nobody proposed. The binary contrast above sets up a reveal; this pattern appends a denial to a sentence that was already complete.
+A denial after a claim can restate it or add a needed limit. Check which it does before editing.
+
+Review tails such as "not merely X," "not just a smoke test," and "not decorative" for a constraint or factual distinction.
 
 | Pattern | Problem |
 |---------|---------|
-| "asserts bounded elapsed time, not merely that an error came back" | The assertion was already stated. The tail argues with nobody. |
-| "the guard must fail on a mutation, not merely succeed on a clean tree" | Says what to do, then re-says it inverted |
-| "asserts on the engine's produced error, not on a config flag" | The reader was not going to assume the config flag |
-| "proves detection, not just green-by-default" | Same |
-| "a real assertion, not a smoke test" | Rating your own test inside its description |
+| "asserts bounded elapsed time, not merely that an error came back" | Cut only if the weaker check is irrelevant to the reader. |
+| "the guard must fail on a mutation, not merely succeed on a clean tree" | Keep if mutation failure distinguishes the required check. |
+| "asserts on the engine's produced error, not on a config flag" | Keep if readers might confuse the observed error with a config flag. |
+| "proves detection, not just green-by-default" | Cut only if the tail adds no test requirement. |
+| "a real assertion, not a smoke test" | State the assertion; keep a smoke-test comparison if requested. |
 
-**Instead:** state what happens. `Run_TerminatesANonYieldingLoop_WithinTheTimeout` runs `while (true) {}` and asserts elapsed time against `HealthModelScriptRuntime.Timeout`. Stop there.
+**Instead:** Cut a tail only if it adds no fact. Keep constraints, exceptions, and needed distinctions; see [Binary Contrasts](#binary-contrasts). For a redundant tail, state what happens: `Run_TerminatesANonYieldingLoop_WithinTheTimeout` runs `while (true) {}` and asserts elapsed time against `HealthModelScriptRuntime.Timeout`.
 
 ## Restatement Escalation
 
@@ -219,7 +225,7 @@ All three carry one instruction: **"Mutate the tree and rerun the guard. It has 
 | 2. Generalised aphorism | "A guard only ever run against X is a vacuous green" |
 | 3. Importance label | "The mutate-and-rerun step is the load-bearing half" |
 
-**Instead:** keep stage 1, strip its negation tail, delete stages 2 and 3.
+**Instead:** Keep the claim and any distinct constraints or exceptions; cut repeated paraphrases and importance labels. For a negation tail, use [Negation-as-Proof](#negation-as-proof).
 
 ## Em-Dash Bold Clause
 
@@ -314,4 +320,4 @@ The user had asked for pure functions and no state-machine framework. The agent 
 | "uses X instead of Y" | "uses X", then say what X does |
 | "The plan itself describes..." / "the prompt requires..." | Describe the behavior itself |
 
-**Instead:** describe what the thing does. Name an alternative only in a decision record, when someone weighed it.
+**Instead:** describe what the thing does. Apply corrections before drafting. Keep correction history only if it informs the reader; see [Binary Contrasts](#binary-contrasts). Record weighed alternatives in a decision record.

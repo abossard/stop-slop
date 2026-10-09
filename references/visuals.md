@@ -1,6 +1,6 @@
 # Visuals
 
-A visual must add information the prose does not state, or cut it. A visual adds information when it shows an order, a relation or a comparison that the reader would otherwise assemble from sentences. Default to prose.
+Use diagrams to introduce the subject, provide an overview, and support the text. Show order, relationships, or comparisons at a glance; leave detailed explanations in prose. Shared concepts are expected; duplicating the explanation adds nothing.
 
 ## Choosing a representation
 
@@ -23,7 +23,7 @@ See the README's Evidence section for full sources.
 
 | Pattern | Fix | `tools/analyze.py` finding |
 |---------|-----|----------------------------|
-| Decorative visual: a diagram, table or picture that restates the prose | Cut it, or make it carry the order, relation or comparison the prose lacks | Review by eye; tag it 🖼️ in the Wall of Shame |
+| Decorative visual: a diagram, table or picture that duplicates the explanation without clarifying its structure | Show the overview, order, relation or comparison; leave detailed explanations in prose | Review by eye; tag it 🖼️ in the Wall of Shame |
 | Mermaid diagram with 11 to 20 nodes | Keep only the nodes the reader needs | `Mermaid diagram has N nodes` |
 | Mermaid diagram past 20 nodes | Split it, or switch to a table | `Split Mermaid diagram (N nodes)` |
 | Node label line past 7 words (each `<br/>` line counts alone) | Aim for 5 words or fewer; move the rest into prose | `Mermaid label has more than 7 words` |

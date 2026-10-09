@@ -12,29 +12,29 @@ Eliminate predictable AI writing patterns from prose.
 
 1. **Cut filler phrases.** Remove throat-clearing openers, emphasis crutches, empty intensifiers and assertion adverbs. See [references/phrases.md](../../references/phrases.md).
 
-2. **Break formulaic structures.** Avoid binary contrasts, negative listings, dramatic fragmentation, rhetorical setups, false agency. See [references/structures.md](../../references/structures.md).
+2. **Break formulaic structures.** When framing hides the point, state it directly. For contrasts, lists, fragments, rhetorical setups, and false agency, see [references/structures.md](../../references/structures.md).
 
 3. **Name the actor.** Whoever acts is the subject. Use passive only when the thing acted on is the topic.
 
 4. **Be specific.** No vague declaratives ("The reasons are structural"). Name the specific thing. No lazy extremes ("every," "always," "never") doing vague work.
 
-5. **Put the reader in the room.** No narrator-from-a-distance voice. "You" beats "People." Specifics beat abstractions.
+5. **Name what happens.** When "People" hides who acts, name the actor and action. Use "you" when the reader acts.
 
 6. **Short sentences, varied rhythm.** Average 15 to 20 words. Uniform lengths are an AI tell. End paragraphs differently. No em dashes.
 
-7. **Trust readers.** State facts directly. Skip softening, justification, hand-holding.
+7. **State the fact.** If a clause only reassures or justifies including a claim, cut it. Keep explanations of cause or behavior.
 
-8. **Cut quotables.** If it sounds like a pull-quote, rewrite it.
+8. **Keep observable claims.** If a quotable sentence adds no fact, cut it; otherwise name the action or consequence.
 
-9. **Don't argue with the reader.** State what the thing does and stop. No "not merely X," no "not just a smoke test," no "not decorative." The negation tail defends against an objection nobody raised.
+9. **Keep needed distinctions.** When a negation tail adds no fact, cut it. For exceptions, see [Negation-as-Proof](../../references/structures.md#negation-as-proof).
 
-10. **Don't label importance, show it.** "Load-bearing," "decisive," "the key insight," "not optional" all mean "this matters" without saying why. Name the consequence instead.
+10. **Name the consequence.** When "load-bearing," "decisive," "the key insight," or "not optional" only labels importance, say what changes or fails. Keep actual requirements.
 
-11. **Say it once.** Claim, then aphorism, then importance label states one fact three times. Keep the claim. Two items beat three. Lists and comparisons keep every real item and may repeat wording.
+11. **Say it once.** Keep each fact once; cut restatements that add no information. Lists and comparisons keep every real item and may repeat wording.
 
 12. **Length follows information.** A three-character fix gets one sentence.
 
-13. **Describe what the thing does.** Your instructions stay in the chat.
+13. **Write technical docs like a colleague explaining the feature.** Say what triggers the behavior and what happens. Replace abstract nouns with concrete actions. Keep API names, constraints, and exceptions. Give each fact one home.
 
 14. **Overview first, details after.**
 
@@ -55,18 +55,18 @@ Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate
 Before delivering prose:
 
 - Empty intensifier or assertion adverb ("really," "exactly," "actually," "cleanly")? Delete it.
-- Passive with no actor, or a thing doing a human verb ("the decision emerges")? Name who does it.
-- Sentence starts with a Wh- word? Restructure it.
+- Passive with no actor or "the decision emerges"? Name who or what acts; software actors count.
+- Wh- opener? Keep conditions and causes; rewrite empty setups. See [Sentence Starters](../../references/structures.md#sentence-starters-to-avoid).
 - Any "here's what/this/that" throat-clearing? Cut to the point.
-- Any "not X, it's Y" contrasts? State Y directly.
+- Corrected subject or "not X, it's Y"? Review with [Binary Contrasts](../../references/structures.md#binary-contrasts).
 - Three consecutive sentences match length? Break one.
 - Paragraph ends with punchy one-liner? Vary it.
 - Em-dash anywhere? Remove it.
 - Vague declarative ("The implications are significant")? Name the specific implication.
-- Narrator-from-a-distance ("Nobody designed this")? Put the reader in the scene.
+- Distant summary ("Nobody designed this")? Name who did what; keep factual causes.
 - Meta-joiners ("The rest of this essay...")? Delete. Let the essay move.
-- Sentence ends in ", not merely X" or ", not just Y"? Cut the tail.
-- "Load-bearing," "decisive," "the crux," "not optional"? Replace with the consequence.
+- Sentence ends in ", not merely X" or ", not just Y"? Review with [Negation-as-Proof](../../references/structures.md#negation-as-proof).
+- "Load-bearing," "decisive," "the crux," "not optional"? Name the consequence; preserve actual requirements.
 - "Deliberately," "intentionally," "by design"? Every choice was. State the mechanism.
 - "Silently"? Only if you checked for the log line, the warning and the exit code. Otherwise drop it.
 - Telling the reader something doesn't matter ("inert," "no-op," "cosmetic," "harmless," "dead code")? Say what reads it.
@@ -76,6 +76,7 @@ Before delivering prose:
 - Sentence past 25 words? Find the second verb and start over there.
 - Rating your own work ("clean," "surgical," "robust," "elegant")? Give the number instead.
 - Reply opens with "You're right" or "Good catch"? The correction shows it.
+- Instruction history in the deliverable? Describe behavior; see [Compliance Narration](../../references/structures.md#compliance-narration).
 - Asking yourself a question in quotes before answering it? Delete the question.
 - "Three X, each closed/covered/measured"? Drop the count and the grade, keep the list.
 - Zombie nouns ("the configuration of")? Use the verb.
@@ -84,7 +85,7 @@ Before delivering prose:
 
 Visuals: choose and review them with [references/visuals.md](../../references/visuals.md).
 
-- Visual restates the prose? Cut it.
+- Visual merely repeats the prose without clarifying its structure? Cut it.
 - Mermaid over 20 nodes, labels over 7 words, or subgraphs over 2 deep? Split and shorten.
 - Emoji on a heading, bullet or diagram node? Delete it.
 - Three steps in one paragraph? Number them.
@@ -103,7 +104,7 @@ For each offender, tag it with one emoji and a one-line roast. Roast the sentenc
 | 🪞 | Self-referential — the text talks about itself |
 | 🫠 | Cringe filler — adds nothing, sounds desperate to fill space |
 | 🦜 | Parrot — repeats the same idea in slightly different words |
-| 🖼️ | Decorative visual: a diagram or table that restates the prose, or an emoji used as ornament |
+| 🖼️ | Decorative visual: a diagram or table that repeats the explanation without clarifying structure, or an emoji used as ornament |
 
 **Format:**
 
@@ -121,7 +122,7 @@ Rate 1-10 on each dimension:
 | Trust | Respects reader intelligence? |
 | Authenticity | Sounds human? |
 | Density | Anything cuttable? |
-| Visual fit | Does each visual add information the prose lacks? |
+| Visual fit | Does it clarify overview, order, relationships, or comparisons? |
 
 Below 42/60: revise.
 
