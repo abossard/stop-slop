@@ -17,7 +17,7 @@ Pick the row that matches the structure of the content, not its topic.
 | Causal argument | Prose; a diagram only for a chain of 3 or more linked causes | Tversky et al. 2000; Sweller et al. 2019 |
 | Definitions | Prose under headings | Lorch 1989 |
 
-See the README's Evidence section for full sources.
+See [Evidence](evidence.md#visuals) for full sources.
 
 ## Visual slop
 

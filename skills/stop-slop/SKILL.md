@@ -34,7 +34,7 @@ Eliminate predictable AI writing patterns from prose.
 
 12. **Length follows information.** A three-character fix gets one sentence.
 
-13. **Write technical docs like a colleague explaining the feature.** Say what triggers the behavior and what happens. Replace abstract nouns with concrete actions. Keep API names, constraints, and exceptions. Give each fact one home.
+13. **Make technical documentation add information.** Explain design choices through constraints and consequences. Reference code and configuration for details readers can retrieve there. Keep needed contracts, instructions, API names, exceptions, and short examples. State triggers and outcomes with concrete actors and actions. Mark unknown rationale as unknown; code alone cannot establish historical intent.
 
 14. **Overview first, details after.**
 
