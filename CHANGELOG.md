@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-19
+
+### Fixed
+- `tools/analyze.py` runs on Python 3.13 and 3.14. Its inline metadata now asks for spaCy 3.8 and `en_core_web_sm` 3.8.0. The pinned 3.7.1 model held spaCy at 3.7.5, whose `blis` 0.7.11 fails to build on either version.
+
 ## 2026-09-26
 
 ### Added
