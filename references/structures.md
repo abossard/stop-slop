@@ -158,7 +158,8 @@ Metadiscourse announcing that content is coming. LLM text skews toward interacti
 |---------|---------|
 | "Let me be honest," | Implies the rest was not |
 | "I need to be brutally honest with you here." | Manufactured gravity |
-| "To be clear," | Usually precedes the first clear thing said || "Here's the thing:" | Pure runway |
+| "To be clear," | Usually precedes the first clear thing said |
+| "Here's the thing:" | Pure runway |
 | "Let's unpack this." | Announces analysis instead of doing it |
 
 **Instead:** state the point. Delete the runway.

@@ -44,7 +44,7 @@ Eliminate predictable AI writing patterns from prose.
 
 Before delivering prose longer than ~100 words, run the slopometer:
 
-- Command: `tools/slopometer --json` (reads stdin)
+- Command: `../../tools/slopometer --json` (reads stdin). The path is relative to this file, like the reference links. The shell starts in the user's project, so resolve it first.
 - Parse with `jq` — never `grep`/`sed` over JSON
 - Exit 3: show the user the banner and stop; estimate no metrics.
 
