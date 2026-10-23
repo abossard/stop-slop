@@ -41,7 +41,7 @@ These are illustrative classifications. Context can change the interpretation of
 
 ## What stop-slop already does
 
-The skill already advises direct positive claims and discourages defensive negation. The structural reference covers Binary Contrasts, Negative Listing, Negation-as-Proof, and Compliance Narration. However, their general advice does not spell out the distinction between applying a conversational correction and publishing that correction. [Skill rules 2, 9, and 13](../skills/stop-slop/SKILL.md), [structures](structures.md)
+The skill already advises direct positive claims and discourages defensive negation. The structural reference covers Binary Contrasts, Negative Listing, Negation-as-Proof, and Compliance Narration. However, their general advice does not spell out the distinction between applying a conversational correction and publishing that correction. [SKILL.md, While you write](../skills/stop-slop/SKILL.md#while-you-write), [structures](structures.md)
 
 The analyzer has two relevant regex families:
 

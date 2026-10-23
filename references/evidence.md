@@ -23,6 +23,23 @@ Key findings:
 - **Kobak "common 10" words** whose aggregate frequency predicts LLM use: across, additionally, comprehensive, crucial, enhancing, exhibited, insights, notably, particularly, within
 - **LLM text has collapsed entropy** (Mahapatra 2026): 1,949–16,853% amplification of certain patterns, complex punctuation suppressed to 3.2–23.2% of baseline
 
+## Prevention
+
+These sources back the drafting steps in SKILL.md: gather content and size the text before writing, use few positive rules with examples, and keep phrase lists for the check after drafting.
+
+| Rule | Finding | Level | Source |
+|------|---------|-------|--------|
+| Slop is mostly missing information | Expert slop labels track relevance, density and tone; zero-shot LLM judges agree with humans at chance (kappa about 0.01) | moderate | Shaib et al. 2025, [arXiv:2509.19163](https://arxiv.org/abs/2509.19163) |
+| Gather the facts before drafting | Sparse prompts gave LLM prose a median 4.8 to 6.6 on a writing-quality model against 8.9 for award-winning authors; 150 to 200 words of supplied content raised it to about 7.0 | moderate | Chakrabarty et al. 2025, [arXiv:2504.07532](https://arxiv.org/abs/2504.07532) |
+| Set a ceiling | Length explains 70 to 90% of the reward gain in RLHF | moderate | Singhal et al. 2024, [arXiv:2310.03716](https://arxiv.org/abs/2310.03716) |
+| Ceilings, not exact lengths | "At most N" constraints pass above 90% in 19 of 26 models; "exactly N" tops out at 75 | strong | Zhang et al. 2025, LIFEBench, [arXiv:2505.16234](https://arxiv.org/abs/2505.16234) |
+| Familiar phrasing is trained in | Raters prefer the more typical response (alpha 0.57 to 0.65); instruct tuning raised "underscore" from 4.3 to 124.9 per million words | moderate | Zhang et al. 2025, [arXiv:2510.01171](https://arxiv.org/abs/2510.01171); Juzek & Ward 2025, [arXiv:2508.01930](https://arxiv.org/abs/2508.01930) |
+| Judges and raters reward lists, bold and length | Under 1% biased preference data injects the formatting bias into a reward model | moderate | Zhang et al. 2024, [arXiv:2409.11704](https://arxiv.org/abs/2409.11704) |
+| Few drafting rules, most important first | Rule-following drops as rule count rises; rules in the last third fail 1.3 to 2.3 times more often | moderate | Jaroslawicz et al. 2025, IFScale, [arXiv:2507.11538](https://arxiv.org/abs/2507.11538) |
+| Phrase lists after drafting | Short ban lists cut violations from about 50% to 1 to 3% but made output sparse; violations concentrate where the banned word is the natural choice | moderate | Candussio et al. 2026, [arXiv:2607.00601](https://arxiv.org/abs/2607.00601); Rana 2026, [arXiv:2601.08070](https://arxiv.org/abs/2601.08070) |
+| Say what to do, with the reason and examples | Vendor guidance: positive instructions with motivation, 3 to 5 varied examples, prompt style mirrors output style | practitioner | [Anthropic prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices) |
+| Fix flagged spans with an outside check | LLM span edits beat unedited text (rank 1.99 vs 2.5) but trail expert edits; edits sometimes swap one cliché for another. Self-refinement without outside feedback amplifies self-bias | moderate | Chakrabarty et al. CHI 2025, [arXiv:2409.14509](https://arxiv.org/abs/2409.14509); Xu et al. 2024, [arXiv:2402.11436](https://arxiv.org/abs/2402.11436) |
+
 ## Clarity
 
 | Rule | Finding | Level | Source |

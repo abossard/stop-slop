@@ -20,12 +20,15 @@ claude plugin install stop-slop@stop-slop
 Then ask: `/stop-slop:stop-slop Review README.md. Keep the facts; cut filler and repetition.`
 
 For other agents, load [the skill](skills/stop-slop/SKILL.md) and keep its linked references accessible.
-Give it text or a file to review, or ask it to apply the guidance while drafting.
+Agents load it before they write text for a person, such as a PR description, comment, email, doc or explanation, and when you ask for a review.
 
 ## Why use it
 
 Use it when a reader has to work through filler to find the action, constraint, or reason.
-The skill makes authors name who acts, state consequences, and keep each fact once.
+Readers judge slop mostly by missing or irrelevant information, not by word choice, so the skill starts before the first sentence.
+The author takes the requested size literally, notes what the reader needs, picks the shape for the channel and sets a ceiling.
+While drafting, the author names who acts, states consequences, claims only what was checked and keeps each fact once.
+Phrase lists and the analyzer check the draft afterwards.
 
 Technical explanations should preserve why a choice exists. Link to code for recoverable details; keep necessary contracts and exceptions.
 Tables and diagrams should clarify comparisons or relationships. Decorative visuals and repeated explanations make the reader do more work.
@@ -34,7 +37,8 @@ The skill reviews meaning and context. The analyzer flags sentences to inspect; 
 
 ## References
 
-- [Writing rules](skills/stop-slop/SKILL.md): drafting and review.
+- [Writing rules](skills/stop-slop/SKILL.md): drafting, checking and review.
+- [Review](references/review.md): checklist, Wall of Shame and scores for review reports.
 - [Phrases](references/phrases.md): filler, vague claims, and plain-word swaps.
 - [Structures](references/structures.md): repeated framing, hedges, and needed distinctions.
 - [Visuals](references/visuals.md): choosing tables, diagrams, and prose.
@@ -53,14 +57,21 @@ The documentation rule follows [Ousterhout](https://web.stanford.edu/~ouster/cgi
 From this checkout, with [uv](https://docs.astral.sh/uv/) installed:
 
 ```bash
-tools/slopometer --file README.md --json
+tools/slopometer --file README.md --findings
 ```
+
+`--findings` prints at most 10 findings, one per line: `S3` is the third prose sentence, `L12` is source line 12 for a visual finding. `--json` prints every metric and finding: each entry in `findings[]` has `line` (the sentence number), `sentence` (an excerpt) and `issues[]`, and each entry in `visual_findings[]` has `line` (the source line), `kind` and `issue`.
+Requirement lines (EARS "shall" clauses, IDs such as `C1-5:`) get no findings, and headings get only word-choice findings.
 
 The wrapper handles Python dependencies through uv. Without uv, it uses Python with the [required packages](tools/requirements.txt) and spaCy's `en_core_web_sm` model.
 Missing dependencies stop the analyzer with exit code 3; it produces no report.
 
 Review findings and compare revisions of the same text. A lower score alone does not show that an edit improved the writing.
 Source-aware judgments, such as whether prose duplicates code or invents rationale, require review beyond the analyzer.
+
+### Evals
+
+[evals/](evals/README.md) runs the skill through GitHub Copilot CLI on 15 writing tasks taken from real corrections, grades the results and compares skill versions blind.
 
 ### Fork and license
 

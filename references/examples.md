@@ -327,7 +327,7 @@ Each pair below is the owner's own edit, quoted verbatim from the git history of
 
 # Wall of Shame Entries
 
-More entries in the format `skills/stop-slop/SKILL.md` defines.
+More entries in the format [review.md](review.md#wall-of-shame) defines.
 
 > 💀 "It's important to note that security plays a crucial role."
 > → Everything in a security doc is important to note. Cut the throat-clearing.

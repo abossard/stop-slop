@@ -1269,6 +1269,130 @@ class TestSpacySinglePass:
 # CLI integration tests
 # ---------------------------------------------------------------------------
 
+class TestBlockKinds:
+    """Requirement lines get no findings; headings keep only word-choice issues."""
+
+    PASSIVE_LONG = (
+        "The guard must fail on a mutation, which was verified by the reviewer before "
+        "the merge was completed by the team in the second week of the release cycle."
+    )
+
+    @pytest.mark.parametrize("text", [
+        f"C1-5: {PASSIVE_LONG}",
+        f"- **NC-30:** {PASSIVE_LONG}",
+        f"[REQ-12] {PASSIVE_LONG}",
+        "WHEN the queue is full the system shall reject new messages, which were "
+        "submitted by the client, with status 429 after the configured timeout expired.",
+    ], ids=["id-colon", "bold-id-list-item", "bracket-id", "ears-shall"])
+    def test_requirement_lines_have_no_findings(self, analyze_module, text):
+        assert analyze_module.analyze_text(text)["findings"] == []
+
+    @pytest.mark.parametrize("text", [
+        PASSIVE_LONG,
+        f"COVID-19 data {PASSIVE_LONG}",
+    ], ids=["plain-prose", "id-without-colon"])
+    def test_prose_controls_keep_findings(self, analyze_module, text):
+        assert analyze_module.analyze_text(text)["findings"]
+
+    @pytest.mark.parametrize("heading,flagged", [
+        ("## Configuration of the deployment was performed", False),
+        ("## Leveraging a robust tapestry of insights", True),
+    ], ids=["grammar-only", "ai-vocabulary"])
+    def test_heading_keeps_only_word_choice_issues(self, analyze_module, heading, flagged):
+        issues = _issues_of(analyze_module.analyze_text(heading))
+        assert bool(issues) == flagged, issues
+        assert not any(i.startswith(("Passive voice", "Nominalizations", "Long sentence")) for i in issues)
+
+
+class TestContrastTail:
+    """Any sentence-final ", not X" is reported as a question, once per sentence."""
+
+    @pytest.mark.parametrize("sentence", [
+        "Keep the gateway on HTTP, not gRPC.",
+        "These were test setup defects, not missing user permissions.",
+        "Grain calls stay inside the pod, and not on the network.",
+    ])
+    def test_contrast_tails_flagged(self, analyze_module, sentence):
+        issues = _issues_of(analyze_module.analyze_text(sentence))
+        assert any(i.startswith("Contrast tail") and "might assume" in i for i in issues), issues
+
+    @pytest.mark.parametrize("sentence", [
+        "It runs on the client, not the server, and caches the result.",
+        "The build does not run on Fridays.",
+        "Run the suite against the real API, not only the recorded fixtures.",
+        "This is not just a refactor, but a rewrite.",
+    ], ids=["mid-sentence", "plain-negation", "defensive-owns-it", "parallelism-owns-it"])
+    def test_contrast_tail_controls(self, analyze_module, sentence):
+        issues = _issues_of(analyze_module.analyze_text(sentence))
+        assert not any(i.startswith("Contrast tail") for i in issues), issues
+
+
+class TestBoldLabelOpeners:
+    """Paragraphs that open with "**Label:**" read as a form."""
+
+    @pytest.mark.parametrize("text,count", [
+        ("**Root cause:** The tool passes values from the JSON.\n\n"
+         "**Recommendation:** Keep the gateway on HTTP.", 2),
+        ("- **Risk**: the cache goes stale.\n- **Mitigation**: refresh it hourly.", 2),
+        ("**Note:** The job runs hourly.\n\nThe cache refreshes after each run.", 0),
+        ("- **Consolidated alerts.** One alert per entity.\n- **Explicit dependencies.** "
+         "Relationships describe what a service needs.", 0),
+    ], ids=["paragraphs", "list-items", "single-label", "bold-without-colon"])
+    def test_bold_label_openers(self, analyze_module, text, count):
+        issues = _issues_of(analyze_module.analyze_text(text))
+        assert sum(i.startswith("Bold label opener") for i in issues) == count, issues
+
+
+class TestRepeatedSentences:
+    """A sentence that restates an earlier one is reported on the later copy."""
+
+    @pytest.mark.parametrize("text,repeat_of", [
+        ("The cache keeps entries for sixty seconds after the last load. Restart the worker. "
+         "The cache keeps entries for sixty seconds after the last load.", 1),
+        ("Evidence package: `/tmp/run-42/report.md` with all logs attached. Lint passed. "
+         "Fresh evidence package: `/tmp/run-42/report.md` with all logs attached.", 1),
+    ], ids=["exact", "near"])
+    def test_repeat_flagged(self, analyze_module, text, repeat_of):
+        result = analyze_module.analyze_text(text)
+        issues = _issues_of(result)
+        assert f"Repeats sentence {repeat_of}: say it once" in issues, issues
+        assert result["findings"][-1]["line"] == result["sentence_count"]
+
+    @pytest.mark.parametrize("text", [
+        "Run the tests. Run the tests.",
+        "Artifacts: `sha256:aaa111` from build one. Artifacts: `sha256:bbb222` from build two.",
+        "The cache keeps entries for sixty seconds. The queue keeps messages for seven days.",
+    ], ids=["too-short", "different-code", "different-facts"])
+    def test_repeat_controls(self, analyze_module, text):
+        assert not any(i.startswith("Repeats sentence") for i in _issues_of(analyze_module.analyze_text(text)))
+
+
+class TestCompactFindings:
+    """--findings prints at most COMPACT_LIMIT rows and no metrics."""
+
+    @pytest.mark.parametrize("text,expected_rows,last_row", [
+        ("Plain text that is fine.", 1, "No findings."),
+        (AI_TEXT * 2, 11, "... "),
+    ], ids=["clean", "truncated"])
+    def test_findings_output(self, text, expected_rows, last_row):
+        proc = subprocess.run(
+            [sys.executable, TOOL, "--findings"],
+            input=text, capture_output=True, text=True, timeout=30
+        )
+        assert proc.returncode == 0, f"stderr: {proc.stderr}"
+        rows = proc.stdout.strip().splitlines()
+        assert len(rows) == expected_rows
+        assert rows[-1].startswith(last_row)
+        assert "Burstiness" not in proc.stdout
+
+    def test_findings_and_json_are_exclusive(self):
+        proc = subprocess.run(
+            [sys.executable, TOOL, "--findings", "--json"],
+            input="Text.", capture_output=True, text=True, timeout=30
+        )
+        assert proc.returncode == 2
+
+
 class TestCLI:
     """Test the CLI interface (stdin, file, JSON output)."""
 

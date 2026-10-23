@@ -209,7 +209,7 @@ Review tails such as "not merely X," "not just a smoke test," and "not decorativ
 | "proves detection, not just green-by-default" | Cut only if the tail adds no test requirement. |
 | "a real assertion, not a smoke test" | State the assertion; keep a smoke-test comparison if requested. |
 
-**Instead:** Cut a tail only if it adds no fact. Keep constraints, exceptions, and needed distinctions; see [Binary Contrasts](#binary-contrasts). For a redundant tail, state what happens: `Run_TerminatesANonYieldingLoop_WithinTheTimeout` runs `while (true) {}` and asserts elapsed time against `HealthModelScriptRuntime.Timeout`.
+**Instead:** Cut a tail only if it adds no fact. Keep constraints, exceptions, and needed distinctions; see [Binary Contrasts](#binary-contrasts). `tools/analyze.py` flags ", not merely X" as `Defensive negation` and any other sentence-final ", not X" as `Contrast tail`. For a redundant tail, state what happens: `Run_TerminatesANonYieldingLoop_WithinTheTimeout` runs `while (true) {}` and asserts elapsed time against `HealthModelScriptRuntime.Timeout`.
 
 ## Restatement Escalation
 
@@ -225,7 +225,7 @@ All three carry one instruction: **"Mutate the tree and rerun the guard. It has 
 | 2. Generalised aphorism | "A guard only ever run against X is a vacuous green" |
 | 3. Importance label | "The mutate-and-rerun step is the load-bearing half" |
 
-**Instead:** Keep the claim and any distinct constraints or exceptions; cut repeated paraphrases and importance labels. For a negation tail, use [Negation-as-Proof](#negation-as-proof).
+**Instead:** Keep the claim and any distinct constraints or exceptions; cut repeated paraphrases and importance labels. `tools/analyze.py` flags a sentence that repeats an earlier one word for word, or nearly, as `Repeats sentence N`. For a negation tail, use [Negation-as-Proof](#negation-as-proof).
 
 ## Em-Dash Bold Clause
 
@@ -248,6 +248,8 @@ Turning prose into a pseudo-form: 13.6% of chat sentences open this way. Every p
 > **Recommendation:** Keep the gateway on HTTP.
 
 **Instead:** in a table or a form, use the label. In prose, drop it. "The tool passes step values straight from the JSON."
+
+`tools/analyze.py` flags each opener as `Bold label opener` once two or more paragraphs or list items open this way.
 
 ## Parenthetical Proof-Stuffing
 

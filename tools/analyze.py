@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.9,<3.13"
 # dependencies = [
 #   "textstat>=0.7.0",
 #   "spacy>=3.7.0,<3.9",
@@ -399,6 +399,28 @@ INLINE_CODE_RE = re.compile(r"(?<!`)(`+)(?!`)[^`\n]+?(?<!`)\1(?!`)")
 LINK_TARGET_RE = re.compile(r"(?<=\])\([^)\s]*(?:\s+\"[^\"]*\")?\)")
 BARE_URL_RE = re.compile(r"https?://[^\s<>]*[^\s<>.,;:!?)\]]")
 
+# Requirement lines follow a mandated template (EARS "shall" clauses, criteria
+# with an ID such as "C1-5:"), so style findings on them cannot be acted on.
+REQUIREMENT_ID_RE = re.compile(
+    r"^(?:\*\*|__)?\[?[A-Z][A-Za-z0-9]{0,7}(?:[-.]\d+)+[a-z]?\]?(?:\*\*|__)?\s*[:)\]]"
+)
+EARS_RE = re.compile(r"\bshall\b", re.IGNORECASE)
+# A heading is a label, not a sentence: only word-choice issues apply to it.
+HEADING_ISSUE_PREFIXES = (
+    "AI-overused words", "AI-typical phrase", "Signature LLM marker",
+    "Throat-clearing", "Importance inflation",
+)
+# "**Root cause:** ..." turns prose into a form; reported when two or more
+# paragraphs open this way, so a single "**Note:**" stays quiet.
+BOLD_LABEL_RE = re.compile(r"^\s*(?:[-+*]\s+|\d+[.)]\s+)?(\*\*|__)([^*_\n]{1,60}?)(?::\1|\1:)")
+BOLD_LABEL_MIN = 2
+# A sentence that ends in ", not X" after the claim is complete. Reported as a
+# question: the alternative stays when the reader might assume it.
+CONTRAST_TAIL_RE = re.compile(r",\s*(?:and\s+)?not\s+[^,;:.!?]{1,60}[.!?]?\s*$", re.IGNORECASE)
+REPEAT_MIN_WORDS = 6
+REPEAT_JACCARD = 0.8
+COMPACT_LIMIT = 10
+
 
 def _mask_non_prose(text: str) -> str:
     """Blank inline code, link targets and bare URLs, keeping every offset."""
@@ -465,17 +487,30 @@ def _fence_segments(text: str) -> list[tuple[str | None, int, list[tuple[int, in
     return segments
 
 
+def _block_kind(text: str, start: int, end: int) -> str:
+    """Classify a prose block as "heading", "requirement" or "prose"."""
+    first_line = text[start:end].split("\n", 1)[0]
+    if HEADING_RE.match(first_line):
+        return "heading"
+    body = LIST_ITEM_RE.sub("", BLOCKQUOTE_RE.sub("", first_line, count=1), count=1).lstrip()
+    if REQUIREMENT_ID_RE.match(body) or EARS_RE.search(text[start:end]):
+        return "requirement"
+    return "prose"
+
+
 def _split_sentence_spans(text: str, masked: str) -> list[dict]:
     """Split markdown prose into sentence spans. Code fences and tables are skipped.
 
     Headings and blockquote lines stand alone; a list item keeps its
     continuation lines, like a paragraph. Boundaries come from the masked text.
+    Each span carries the "kind" of its block (see _block_kind).
     """
     spans = []
 
     def emit(block):
         if block:
-            spans.extend(_sentence_spans_in_block(text, masked, *block))
+            kind = _block_kind(text, *block)
+            spans.extend({**span, "kind": kind} for span in _sentence_spans_in_block(text, masked, *block))
 
     for fence, _, lines in _fence_segments(masked):
         if fence is not None:
@@ -1053,20 +1088,31 @@ def _generate_findings(
                 )
 
         # Negation-then-correction frames
-        claimed_by_parallelism = False
+        negation_reported = False
         for hit in _match_labels(sent, NEGATIVE_PARALLELISM_RES):
             issues.append(f"Negative parallelism: \"{hit}\" — state the positive claim")
-            claimed_by_parallelism = True
+            negation_reported = True
             break
 
         # Defensive negation tails, skipped when the sentence is already
         # reported above so one negation frame yields one issue.
-        if not claimed_by_parallelism:
+        if not negation_reported:
             for hit in _match_labels(sent, DEFENSIVE_NEGATION_RES):
                 issues.append(
                     f"Defensive negation: \"{hit}\": cut the tail, the claim already stands"
                 )
+                negation_reported = True
                 break
+
+        # Any other ", not X" ending. Many are needed scope limits, so the
+        # issue asks instead of telling the writer to cut.
+        if not negation_reported:
+            tail = CONTRAST_TAIL_RE.search(sent)
+            if tail:
+                issues.append(
+                    f"Contrast tail: \"{tail.group(0).strip(' ,.!?')}\": keep it only if the reader "
+                    f"might assume the alternative"
+                )
 
         # Validation openers (RLHF sycophancy artifact, arXiv:2310.13548).
         # Markdown decoration is stripped so list items and bold text still
@@ -1102,13 +1148,55 @@ def _generate_findings(
                 )
 
         if issues:
-            findings.append({
-                "line": idx + 1,
-                "sentence": shown[idx][:120] + ("..." if len(shown[idx]) > 120 else ""),
-                "issues": issues,
-            })
+            findings.append({"line": idx + 1, "sentence": _excerpt(shown[idx]), "issues": issues})
 
     return findings
+
+
+def _excerpt(sentence: str) -> str:
+    return sentence[:120] + ("..." if len(sentence) > 120 else "")
+
+
+def _document_issues(shown: list[str], kinds: list[str]) -> dict[int, list[str]]:
+    """Issues that need the whole document: bold-label openers and repeated sentences."""
+    issues: dict[int, list[str]] = {}
+    prose = [idx for idx, kind in enumerate(kinds) if kind == "prose"]
+
+    labels = [(idx, match.group(0).strip()) for idx in prose if (match := BOLD_LABEL_RE.match(shown[idx]))]
+    if len(labels) >= BOLD_LABEL_MIN:
+        for idx, label in labels:
+            issues.setdefault(idx, []).append(
+                f"Bold label opener: \"{label}\": write the sentence without the field name"
+            )
+
+    # Compared on the original text: code, hashes and paths distinguish log
+    # lines that share a template once masked.
+    seen: list[tuple[int, set[str]]] = []
+    for idx in prose:
+        words = set(re.findall(r"\w+", shown[idx].lower()))
+        if len(words) < REPEAT_MIN_WORDS:
+            continue
+        for earlier, other in seen:
+            if len(words & other) / len(words | other) >= REPEAT_JACCARD:
+                issues.setdefault(idx, []).append(f"Repeats sentence {earlier + 1}: say it once")
+                break
+        seen.append((idx, words))
+    return issues
+
+
+def _apply_block_kinds(findings: list[dict], kinds: list[str]) -> list[dict]:
+    """Drop findings on requirement lines; keep only word-choice issues on headings."""
+    kept = []
+    for finding in findings:
+        kind = kinds[finding["line"] - 1]
+        if kind == "requirement":
+            continue
+        if kind == "heading":
+            finding["issues"] = [i for i in finding["issues"] if i.startswith(HEADING_ISSUE_PREFIXES)]
+            if not finding["issues"]:
+                continue
+        kept.append(finding)
+    return kept
 
 
 def analyze_text(text: str) -> dict:
@@ -1170,7 +1258,17 @@ def analyze_text(text: str) -> dict:
         for tok in tokens
         if not tok.is_punct
     ]
-    findings = _generate_findings(sentences, shown, spacy_lemmas, passive_data, sentence_tokens)
+    kinds = [span["kind"] for span in sentence_spans]
+    findings = _apply_block_kinds(
+        _generate_findings(sentences, shown, spacy_lemmas, passive_data, sentence_tokens), kinds
+    )
+    by_line = {finding["line"]: finding for finding in findings}
+    for idx, issues in _document_issues(shown, kinds).items():
+        if idx + 1 in by_line:
+            by_line[idx + 1]["issues"].extend(issues)
+        else:
+            findings.append({"line": idx + 1, "sentence": _excerpt(shown[idx]), "issues": issues})
+    findings.sort(key=lambda finding: finding["line"])
     textstat_metrics = _compute_textstat_metrics(prose_text, sentence_tokens)
     visual_findings, bold_density = _detect_visuals(raw_text, len(words))
 
@@ -1336,6 +1434,17 @@ def _format_human(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _format_findings(result: dict) -> str:
+    """At most COMPACT_LIMIT findings, one per line: S<n> for sentence n, L<n> for source line n."""
+    rows = [f"S{f['line']} \"{f['sentence']}\": {'; '.join(f['issues'])}" for f in result["findings"]]
+    rows += [f"L{v['line']} {v['issue']}" for v in result["visual_findings"]]
+    if not rows:
+        return "No findings."
+    if len(rows) > COMPACT_LIMIT:
+        rows = rows[:COMPACT_LIMIT] + [f"... {len(rows) - COMPACT_LIMIT} more; --json lists all"]
+    return "\n".join(rows)
+
+
 def _missing_deps_banner() -> str:
     rule = "═" * 72
     lines = [rule, "  STOP-SLOP ANALYZER: REQUIRED DEPENDENCIES MISSING, NO RESULTS", rule]
@@ -1354,7 +1463,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="Analyze text for AI-generated writing patterns."
     )
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true", help="Output as JSON")
+    output.add_argument("--findings", action="store_true",
+                        help=f"Print at most {COMPACT_LIMIT} findings, one per line, without metrics")
     parser.add_argument("--file", type=str, help="Read from file instead of stdin")
     args = parser.parse_args()
 
@@ -1379,6 +1491,8 @@ def main():
 
     if args.json:
         print(json.dumps(result, indent=2))
+    elif args.findings:
+        print(_format_findings(result))
     else:
         print(_format_human(result))
 

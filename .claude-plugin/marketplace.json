@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "stop-slop",
-  "description": "Remove AI writing patterns from prose.",
+  "description": "Prevent and remove AI writing patterns in prose.",
   "owner": {
     "name": "abossard",
     "author": "Hardik Pandya (https://hvpandya.com)"
@@ -10,7 +10,7 @@
     {
       "name": "stop-slop",
       "source": "./",
-      "description": "Skill for catching and removing predictable AI writing patterns: banned phrases, structural clichés, rhythm issues, and AI tells."
+      "description": "Skill that sizes text to what the reader needs while drafting, then catches filler, invented claims, structural clichés and AI tells."
     }
   ]
 }

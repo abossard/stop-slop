@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-24
+
+### Changed
+- `SKILL.md` works before drafting. The author takes the requested size literally, notes what the reader needs, picks a shape and ceiling per channel (chat, status, PR, commit, comment, email, code comment, doc note, ADR, plan) and reads the surrounding text before adding to a file. Drafting rules are fewer and positive; the tell list moved to the check after drafting.
+- The description is quoted and asks agents to load the skill before writing anything a person will read. An unquoted ": " made the frontmatter invalid YAML, and Copilot then skipped the skill without an error.
+- Deliverables never mention the skill, the analyzer, its metrics or scores. In 159 Copilot invocations, 51 listed the skills used and 34 pasted metrics into documents.
+- The slopometer step is one command, `tools/slopometer --findings --file <path>`, and runs only for saved drafts over about 150 words. Agents had opened the analyzer source 61 times to learn its output and queried 54 times for JSON keys that do not exist.
+- The Quick Checks, Wall of Shame and Scoring moved to `references/review.md` and apply only to review reports.
+- `tools/analyze.py` requires Python below 3.13. For a plugin path without a cached environment, uv picked the newest Python, where spaCy 3.7's `blis` dependency has no wheel, and the build failed.
+
+### Added
+- `tools/analyze.py --findings` prints at most 10 findings, one per line, without metrics. The README documents the JSON keys.
+- The analyzer flags a sentence-final ", not X" as `Contrast tail` and asks whether the reader might assume X. In 159 Copilot invocations, about 230 such tails appeared and 17 were flagged.
+- `Bold label opener` flags "**Label:**" openers once two or more paragraphs or list items use them.
+- `Repeats sentence N` flags a sentence that matches an earlier one word for word or nearly (word overlap of 0.8 or more, at least 6 words), compared with code and paths included.
+- Requirement lines (EARS "shall" clauses, IDs such as `C1-5:`) get no findings, and headings keep only word-choice findings. On 60 real blueprints, long-sentence findings fell from 811 to 557 and passive-voice findings from 1,244 to 1,047.
+- A paste-in writing contract for subagents that draft text, since they do not load the skill.
+- `references/evidence.md` has a Prevention section: why models pad (length and typicality rewards), why few positive rules beat long ban lists, and why ceilings beat exact lengths.
+- `evals/` runs the skill through GitHub Copilot CLI on 15 writing tasks built from the owner's real corrections. It grades deterministic checks, slopometer metrics and judge-model expectations, and compares versions blind against a reader profile.
+
 ## 2026-09-26
 
 ### Added
