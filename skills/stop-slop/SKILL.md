@@ -58,8 +58,9 @@ Tables are for comparing several items on several attributes. Headings are for d
    - stacked hedges: "may potentially", "could possibly"
    - a bold label with a colon or em dash opening each paragraph
    - a count that grades the list it introduces: "Three risks, each mitigated:"
-3. For drafts over about 150 words that will be saved (docs, READMEs, ADRs, reports), run the slopometer once from the plugin root, two directories above this file:
-   `tools/slopometer --findings --file <path>`
+3. For drafts over about 150 words that will be saved (docs, READMEs, ADRs, reports), run the slopometer once:
+   `../../tools/slopometer --findings --file <path>`
+   The path is relative to this file, like the links. The shell starts in the user's project, so resolve it first.
    It prints at most 10 findings, each with the sentence it quotes. Fix the sentences where an issue is real and ignore the rest. Run it once more after editing. Exit code 3 means missing dependencies: tell the user and continue without it. Skip it for chat, comments and commit messages.
 4. Report in a sentence or two what you wrote and where. Do not justify the placement or structure, and do not grade your own text.
 

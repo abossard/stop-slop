@@ -6,9 +6,8 @@
 - `SKILL.md` works before drafting. The author takes the requested size literally, notes what the reader needs, picks a shape and ceiling per channel (chat, status, PR, commit, comment, email, code comment, doc note, ADR, plan) and reads the surrounding text before adding to a file. Drafting rules are fewer and positive; the tell list moved to the check after drafting.
 - The description is quoted and asks agents to load the skill before writing anything a person will read. An unquoted ": " made the frontmatter invalid YAML, and Copilot then skipped the skill without an error.
 - Deliverables never mention the skill, the analyzer, its metrics or scores. In 159 Copilot invocations, 51 listed the skills used and 34 pasted metrics into documents.
-- The slopometer step is one command, `tools/slopometer --findings --file <path>`, and runs only for saved drafts over about 150 words. Agents had opened the analyzer source 61 times to learn its output and queried 54 times for JSON keys that do not exist.
+- The slopometer step is one command, `../../tools/slopometer --findings --file <path>`, and runs only for saved drafts over about 150 words. Agents had opened the analyzer source 61 times to learn its output and queried 54 times for JSON keys that do not exist.
 - The Quick Checks, Wall of Shame and Scoring moved to `references/review.md` and apply only to review reports.
-- `tools/analyze.py` requires Python below 3.13. For a plugin path without a cached environment, uv picked the newest Python, where spaCy 3.7's `blis` dependency has no wheel, and the build failed.
 
 ### Added
 - `tools/analyze.py --findings` prints at most 10 findings, one per line, without metrics. The README documents the JSON keys.
@@ -19,6 +18,13 @@
 - A paste-in writing contract for subagents that draft text, since they do not load the skill.
 - `references/evidence.md` has a Prevention section: why models pad (length and typicality rewards), why few positive rules beat long ban lists, and why ceilings beat exact lengths.
 - `evals/` runs the skill through GitHub Copilot CLI on 15 writing tasks built from the owner's real corrections. It grades deterministic checks, slopometer metrics and judge-model expectations, and compares versions blind against a reader profile.
+
+## 2026-10-19
+
+### Fixed
+- `tools/analyze.py` runs on Python 3.13 and 3.14. Its inline metadata now asks for spaCy 3.8 and `en_core_web_sm` 3.8.0. The pinned 3.7.1 model held spaCy at 3.7.5, whose `blis` 0.7.11 fails to build on either version.
+- `SKILL.md` gives the analyzer command as `../../tools/slopometer`, relative to the skill file like its reference links. An agent's shell starts in the user's project, where `tools/slopometer` does not exist.
+- The Throat-Clearing Preamble table in `references/structures.md` shows its "Here's the thing:" row again. It had been joined to the row above.
 
 ## 2026-09-26
 
