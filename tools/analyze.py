@@ -901,6 +901,29 @@ def _subject_verb_gaps(tokens: list) -> list[tuple[str, str, int]]:
     return gaps
 
 
+def _coordination_lengths(tokens: list) -> list[int]:
+    """Item counts of the coordinations in one sentence, two items or more.
+
+    A coordination is a head token plus its chain of `conj` children, the way
+    spaCy parses "fast, reliable, and secure". A head with a subordinator ("If
+    it fails, retry and log") joins clauses, not list items, so it is skipped.
+    """
+    in_sentence = {tok.i for tok in tokens}
+    lengths = []
+    for tok in tokens:
+        if tok.dep_ == "conj" or any(child.dep_ == "mark" for child in tok.children):
+            continue
+        count, frontier = 1, [tok]
+        while frontier:
+            for child in frontier.pop().children:
+                if child.dep_ == "conj" and child.i in in_sentence:
+                    count += 1
+                    frontier.append(child)
+        if count >= 2:
+            lengths.append(count)
+    return lengths
+
+
 def _trailing_ing_clause(tokens: list) -> str | None:
     """Return the start of a comma-led -ing clause that runs to the sentence end."""
     words = [t for t in tokens if not t.is_punct and not t.is_space]
@@ -1467,6 +1490,7 @@ def analyze_text(text: str) -> dict:
             "difficult_word_rate": 0,
             "visual_findings": [],
             "bold_density": 0,
+            "coordination_lengths": {"pairs": 0, "triads": 0, "longer": 0},
             "findings": [],
         }
 
@@ -1500,6 +1524,7 @@ def analyze_text(text: str) -> dict:
     )
     textstat_metrics = _compute_textstat_metrics(prose_text, sentence_tokens)
     visual_findings, bold_density = _detect_visuals(raw_text, len(words))
+    coordinations = [n for tokens in sentence_tokens for n in _coordination_lengths(tokens)]
 
     result = {
         "word_count": len(words),
@@ -1535,6 +1560,11 @@ def analyze_text(text: str) -> dict:
         "mean_dependency_distance": _mean_dependency_distance(sentence_tokens),
         "visual_findings": visual_findings,
         "bold_density": bold_density,
+        "coordination_lengths": {
+            "pairs": coordinations.count(2),
+            "triads": coordinations.count(3),
+            "longer": sum(1 for n in coordinations if n > 3),
+        },
         "findings": findings,
     }
     result.update(textstat_metrics)
@@ -1623,6 +1653,14 @@ def _format_human(result: dict) -> str:
             f"Template rate:       {tr:.3f} "
             f"({templates['pos_token_count']} POS tokens; rises with length, "
             f"compare like-sized texts only)"
+        )
+
+    coordinations = result.get("coordination_lengths") or {}
+    if any(coordinations.values()):
+        lines.append(
+            f"Coordinations:       {coordinations['pairs']} pairs, "
+            f"{coordinations['triads']} triads, {coordinations['longer']} longer "
+            f"(no threshold, compare like-sized texts only)"
         )
 
     markers = result.get("signature_markers") or {}

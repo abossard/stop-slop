@@ -1388,6 +1388,46 @@ class TestInflatedVerbs:
         )
 
 
+TRIAD_TEXT = (
+    "The platform is fast, reliable, and secure. "
+    "It saves time, money, and effort. "
+    "We tested it, fixed it, and shipped it."
+)
+
+
+class TestCoordinationLengths:
+    """Pairs, triads and longer series are counted, with no threshold."""
+
+    def test_triads_counted(self, analyze_module):
+        result = analyze_module.analyze_text(TRIAD_TEXT)
+        assert result["coordination_lengths"] == {"pairs": 0, "triads": 3, "longer": 0}
+
+    def test_pairs_and_longer_series_counted(self, analyze_module):
+        text = TRIAD_TEXT + (
+            " It runs on Windows, macOS, Linux, and BSD."
+            " The cache is small and fast."
+        )
+        result = analyze_module.analyze_text(text)
+        assert result["coordination_lengths"] == {"pairs": 1, "triads": 3, "longer": 1}
+
+    def test_clause_coordination_not_counted(self, analyze_module):
+        result = analyze_module.analyze_text("If it fails, retry and log.")
+        assert result["coordination_lengths"]["triads"] == 0
+
+    def test_no_finding_without_threshold(self, analyze_module):
+        """Three is the shortest series, so triads dominate ordinary text too."""
+        result = analyze_module.analyze_text(TRIAD_TEXT)
+        assert not any("three" in i.lower() for i in _issues_of(result))
+
+    def test_empty_input_has_coordination_key(self, analyze_module):
+        result = analyze_module.analyze_text("")
+        assert result["coordination_lengths"] == {"pairs": 0, "triads": 0, "longer": 0}
+
+    def test_human_output_prints_coordinations(self, analyze_module):
+        output = analyze_module._format_human(analyze_module.analyze_text(TRIAD_TEXT))
+        assert "Coordinations:       0 pairs, 3 triads, 0 longer" in output
+
+
 class TestDecisiveness:
     """C11 — "decisive" importance-inflation frames, without flagging the
     ordinary military, sports and character senses of the adjective."""

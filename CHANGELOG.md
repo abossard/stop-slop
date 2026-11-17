@@ -8,6 +8,7 @@
 - `tools/analyze.py` flags a paragraph with two or more paragraph hedges ("That said,", "Of course,", "It's important to remember"). Blank lines separate paragraphs. `references/structures.md` describes them under Paragraph Hedges.
 - `tools/analyze.py` flags three different words from its AI vocabulary lists in one paragraph as `Buzzword cluster`, the rule `references/phrases.md` already gave. Tier 2 adds "unlock", "elevate", "journey" and "game-changer", flagged only next to another signal or in a cluster.
 - `tools/analyze.py` flags inflated verbs ("unveiled", "forged a partnership", "delivered a keynote", "drew 100 votes", "serves as a") and suggests the plain one. `references/phrases.md` lists them under Inflated Verbs. Only "serves as" has a written source. The others come from one anecdote, and the section says so.
+- `tools/analyze.py` reports `coordination_lengths`: pairs, triads and longer series, from spaCy's coordination parse. It has no threshold and adds no finding, because three is the shortest series and triads lead in ordinary prose too.
 
 ### Changed
 - The `Hedge stacking` check covers the whole "Hedge words to watch" list in `references/structures.md`. It adds "it is possible that", "it is likely that", "to some extent" and "more or less", and a test keeps the two lists in sync.

@@ -48,7 +48,7 @@ Before delivering prose longer than ~100 words, run the slopometer:
 - Parse with `jq` — never `grep`/`sed` over JSON
 - Exit 3: show the user the banner and stop; estimate no metrics.
 
-Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate, findings[], visual_findings[]) to prioritize edits, then re-run after revision.
+Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate, coordination_lengths, findings[], visual_findings[]) to prioritize edits, then re-run after revision.
 
 ## Quick Checks
 
@@ -83,6 +83,7 @@ Before delivering prose:
 - Instruction history in the deliverable? Describe behavior; see [Compliance Narration](../../references/structures.md#compliance-narration).
 - Asking yourself a question in quotes before answering it? Delete the question.
 - "Three X, each closed/covered/measured"? Drop the count and the grade, keep the list.
+- Most lists have exactly three items? Keep the real items, whatever their count.
 - Zombie nouns ("the configuration of")? Use the verb.
 - Dramatic verb ("unveiled," "forged a partnership," "serves as")? Use the plain one.
 - Trailing ", ensuring X"? Cut it or make it a sentence.

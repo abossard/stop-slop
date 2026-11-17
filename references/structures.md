@@ -204,6 +204,8 @@ AI loves balanced, parallel structures — especially three items where each get
 
 **Instead:** Vary list lengths. Give more space to things that deserve it. Two items are fine. One item is fine. Not everything needs a counterpoint.
 
+Wikipedia's Signs of AI writing names the [rule of three](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Rule_of_three) as an LLM habit: "adjective, adjective, adjective" and "short phrase, short phrase, and short phrase". `tools/analyze.py` reports `coordination_lengths` (pairs, triads and longer series) without a threshold. Three is the shortest series, so triads lead in ordinary prose too. Compare the counts between drafts of the same text, and check whether pairs and single points are missing.
+
 ## Negation-as-Proof
 
 A denial after a claim can restate it or add a needed limit. Check which it does before editing.
