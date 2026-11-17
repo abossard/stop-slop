@@ -17,6 +17,8 @@ These sources back the analyzer signals and the clarity and visual rules. Strong
 | Reinhart et al. (2025) | Present participle clauses, nominalizations and passive voice separate LLM from human text | *PNAS* 122, e2422455122; arXiv:2410.16107 |
 | Muñoz-Ortiz et al. (2024) | LLM news text has longer dependency distances | *Artificial Intelligence Review* 57, 265; arXiv:2308.09067 |
 | Geng & Trotta (2025) | Word lists decay: "delve" fell after its overuse was publicized | ACL Findings 2025; arXiv:2502.09606 |
+| Wikipedia Manual of Style, Words to watch | Unsupported attributions: "research has shown", "many scholars state", "it is widely thought" | [Unsupported attributions](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Unsupported_attributions) |
+| Wikipedia, Signs of AI writing | LLM text credits vague authorities: "Experts argue", "Industry reports" | [Vague attributions](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Vague_attributions_and_overgeneralization_of_opinions) |
 
 Key findings:
 - **Top 4 discriminating features** (Opara 2024): UniqueWordCount, StopWordCount, TTR, HapaxLegomenonRate

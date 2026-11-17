@@ -16,7 +16,7 @@ Eliminate predictable AI writing patterns from prose.
 
 3. **Name the actor.** Whoever acts is the subject. Use passive only when the thing acted on is the topic.
 
-4. **Be specific.** No vague declaratives ("The reasons are structural"). Name the specific thing. No lazy extremes ("every," "always," "never") doing vague work.
+4. **Be specific.** No vague declaratives ("The reasons are structural"). Name the specific thing. No lazy extremes ("every," "always," "never") doing vague work. Credit claims to a named source and give trends a number.
 
 5. **Name what happens.** When "People" hides who acts, name the actor and action. Use "you" when the reader acts.
 
@@ -63,6 +63,7 @@ Before delivering prose:
 - Paragraph ends with punchy one-liner? Vary it.
 - Em-dash anywhere? Remove it.
 - Vague declarative ("The implications are significant")? Name the specific implication.
+- "Studies show," "experts agree," "in recent years"? Name the source and the number, or cut the claim.
 - Distant summary ("Nobody designed this")? Name who did what; keep factual causes.
 - Meta-joiners ("The rest of this essay...")? Delete. Let the essay move.
 - Sentence ends in ", not merely X" or ", not just Y"? Review with [Negation-as-Proof](../../references/structures.md#negation-as-proof).

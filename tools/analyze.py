@@ -313,6 +313,79 @@ DECISIVENESS_RES = [
     ),
 ]
 
+# Claims credited to an unnamed authority. Wikipedia's Manual of Style lists
+# these as unsupported attributions ("research has shown", "many scholars
+# state", "it is widely thought"), and its Signs of AI writing page names the
+# same move in LLM text ("Experts argue", "Industry reports"). Matched on the
+# _phrase_form of a sentence, so "it's widely believed" counts.
+UNSOURCED_ATTRIBUTION_RES = [
+    re.compile(
+        r"\b(?:(?:many|most|some|several|numerous|multiple|recent|independent)\s+)?"
+        r"(?:studies|research|surveys|experts|scientists|researchers|scholars|"
+        r"analysts|observers|critics|evidence|industry\s+reports)\s+"
+        r"(?:show|shows|showed|have\s+shown|has\s+shown|suggest|suggests|"
+        r"indicate|indicates|find|finds|found|have\s+found|confirm|confirms|"
+        r"prove|proves|demonstrate|demonstrates|agree|agrees|argue|argues|say|"
+        r"says|believe|believes|claim|claims|warn|warns|point\s+to|points\s+to)\b"
+    ),
+    re.compile(
+        r"\b(?:many|most|some)\s+(?:people|developers|engineers|users|teams|"
+        r"companies|organizations)\s+(?:say|believe|think|feel|agree|claim)\b"
+    ),
+    re.compile(
+        r"\bit\s+is\s+(?:widely|generally|commonly|often|broadly|largely)\s+"
+        r"(?:believed|accepted|known|thought|agreed|said|recognized|recognised|"
+        r"acknowledged|reported|regarded|considered)\b"
+    ),
+    re.compile(
+        r"\b(?:is|are|was|were)\s+widely\s+(?:regarded|considered|seen|viewed|"
+        r"recognized|recognised)\s+as\b"
+    ),
+    re.compile(
+        r"\baccording\s+to\s+(?:(?:many|most|some|several|recent)\s+)?"
+        r"(?:experts|studies|research|researchers|scientists|analysts|sources)\b"
+    ),
+]
+
+# A determiner, number or possessive right before the match names whose
+# research it is: "our research shows", "the two studies found", "Google's
+# researchers found". Checked against the text before the match.
+OWNED_ATTRIBUTION_RE = re.compile(
+    r"(?:\b(?:the|our|this|these|those|their|his|her|its|my|your|both|two|"
+    r"three|four|five|\d+)|\w+'s)\s+(?:[\w-]+\s+)?$"
+)
+
+# A link, footnote, "et al.", a year in parentheses, a DOI or an arXiv id in
+# the same sentence is a source, so the attribution is no longer unsourced.
+# Checked on the sentence as written, because link targets are masked.
+CITATION_RE = re.compile(
+    r"\]\(|https?://|\[\^|\[\d+\]|\bet al\b|\((?:[^()]*\s)?(?:19|20)\d\d[a-z]?\)"
+    r"|\bdoi\b|doi\.org|\barxiv\b",
+    re.IGNORECASE,
+)
+
+# A trend told with an intensifier instead of a number ("has significantly
+# increased"), or a time frame with no dates ("in recent years"). Any digit
+# in the sentence exempts it.
+_TREND_ADVERB = (
+    r"(?:significantly|dramatically|substantially|considerably|drastically|"
+    r"sharply|rapidly|greatly|exponentially|massively)"
+)
+_TREND_VERB = (
+    r"(?:increase[sd]?|increasing|decrease[sd]?|decreasing|gr[eo]w(?:s|n|ing)?|"
+    r"r[io]se[ns]?|rising|decline[sd]?|declining|f[ae]ll(?:s|en|ing)?|"
+    r"improve[sd]?|improving|drop(?:s|ped|ping)?|surge[sd]?|surging|"
+    r"reduce[sd]?|reducing|accelerate[sd]?|accelerating|expand(?:s|ed|ing)?)"
+)
+UNQUANTIFIED_TREND_RES = [
+    re.compile(rf"\b{_TREND_ADVERB}\s+{_TREND_VERB}\b"),
+    re.compile(rf"\b{_TREND_VERB}\s+{_TREND_ADVERB}\b"),
+    re.compile(
+        r"\b(?:in\s+recent\s+(?:years|months|decades)|over\s+the\s+(?:past|last)\s+"
+        r"(?:few|several|couple\s+of)\s+(?:years|months|decades))\b"
+    ),
+]
+
 EM_DASH = "\u2014"
 
 # Minimum POS tokens before syntactic-template rates are stable enough to
@@ -985,6 +1058,34 @@ def _phrase_form(sent_lower: str) -> str:
     return re.sub(r"\bit's\b", "it is", sent_lower.replace("’", "'"))
 
 
+def _vague_claim_issues(phrase_form: str, written: str) -> list[str]:
+    """Flag claims with no named source and trends with no number.
+
+    phrase_form is the sentence from _phrase_form. written is the sentence as
+    written, which still holds the link targets and digits the exemptions need.
+    """
+    issues = []
+    if not CITATION_RE.search(written):
+        for pattern in UNSOURCED_ATTRIBUTION_RES:
+            found = pattern.search(phrase_form)
+            if found and not OWNED_ATTRIBUTION_RE.search(phrase_form[:found.start()]):
+                hit = " ".join(found.group(0).split())
+                issues.append(
+                    f'Unsourced attribution: "{hit}": name the source or cut the claim'
+                )
+                break
+    if not re.search(r"\d", written):
+        for pattern in UNQUANTIFIED_TREND_RES:
+            found = pattern.search(phrase_form)
+            if found:
+                hit = " ".join(found.group(0).split())
+                issues.append(
+                    f'Unquantified trend: "{hit}": give the number and the period'
+                )
+                break
+    return issues
+
+
 def _compute_passive_voice_rate(sentences: list[str], passive_data: list[bool]) -> float:
     """Fraction of sentences with passive voice."""
     if not sentences:
@@ -1120,6 +1221,9 @@ def _generate_findings(
                 f"Importance inflation: \"{hit}\" — name what actually changed"
             )
             break
+
+        # Claims with no named source, trends with no number
+        issues.extend(_vague_claim_issues(phrase_form, shown[idx]))
 
         # Tier-2 words are too common to flag alone; only when clustered
         # with another signal in the same sentence.

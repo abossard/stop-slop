@@ -174,6 +174,21 @@ Sentences that announce importance without naming the specific thing. Kill these
 
 If a sentence says something is important/deep/structural without showing the specific thing, cut it or replace it with the specific thing.
 
+## Unsourced Claims
+
+A claim credited to "studies," "experts" or "research" sounds checked, but it gives the reader nothing to check. Wikipedia's Manual of Style calls these [unsupported attributions](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Unsupported_attributions), and its [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Vague_attributions_and_overgeneralization_of_opinions) page lists them as an LLM habit. A trend told with an intensifier instead of a number has the same problem.
+
+| Pattern | Fix |
+|---------|-----|
+| "Studies show" / "Research indicates" / "Evidence suggests" | Name the study, or cut the claim |
+| "Many experts agree" / "Some people say" | Name who said it |
+| "It is widely believed" / "is widely regarded as" | Name who believes it, or state the fact |
+| "According to experts" | Name the expert |
+| "has significantly increased" / "grew rapidly" | Give the number and the period |
+| "In recent years" / "Over the past few years" | Name the years |
+
+`tools/analyze.py` flags these as `Unsourced attribution` and `Unquantified trend`. A determiner or possessive before the noun names a source ("our research shows", "Google's researchers found"). So does a citation in the same sentence: a link, a footnote, "et al." or a year in parentheses. Any digit in the sentence counts as a number.
+
 ## Technical-Register Slop
 
 Technical writing rarely contains "delve" or "tapestry." Its filler is "load-bearing," "not merely," "deliberately" and "exactly." Each of these defends a claim against doubt the reader never raised, and none of them adds a fact.

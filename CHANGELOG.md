@@ -2,6 +2,9 @@
 
 ## 2026-11-17
 
+### Added
+- `tools/analyze.py` flags unsourced attributions ("studies show", "many experts agree", "it is widely believed") and trends with no number ("has significantly increased", "in recent years"). A determiner or possessive before the noun, a citation in the sentence, or a digit exempts the sentence. `references/phrases.md` lists the patterns under Unsourced Claims.
+
 ### Fixed
 - `tools/analyze.py` reads "it's" as "it is" and accepts curly apostrophes when it matches AI phrases and sentence starters. "It's worth noting", "It’s important to note" and "In today’s" went unflagged before.
 - `tools/analyze.py` flags the filler phrases that `references/phrases.md` tells writers to cut: "at its core", "at the end of the day", "when it comes to", "in a world where" and "the reality is". Each yields a `Filler phrase` issue. "At its core" and "at the end of the day" need a following comma, so their literal sense stays unflagged. A test checks every phrase on that list against the analyzer.

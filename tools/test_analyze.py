@@ -1197,6 +1197,65 @@ class TestFillerPhrases:
         assert missed == []
 
 
+class TestVagueClaims:
+    """Claims credited to nobody, and trends told without a number."""
+
+    @pytest.mark.parametrize("sentence", [
+        "Studies show that remote workers are happier.",
+        "Research indicates that hybrid models win.",
+        "Many experts agree that offices will shrink.",
+        "It’s widely believed that caching fixes this.",
+        "According to experts, the API is stable.",
+        "Industry reports suggest the market is growing.",
+        "Some people say the tool is slow.",
+        "Postgres is widely regarded as the safe default.",
+    ])
+    def test_unsourced_attribution_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any(i.startswith("Unsourced attribution") for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "Our research shows a drop in tail latency.",
+        "The two studies found no effect.",
+        "Google's researchers found the bug.",
+        "Recent studies show a shift in vocabulary [1].",
+        "Studies show the shift ([Kobak et al.](https://arxiv.org/abs/2406.07016)).",
+        "The experts on call agreed to roll back.",
+        "The study shows no regression.",
+    ])
+    def test_named_or_cited_source_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(i.startswith("Unsourced attribution") for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "In recent years, remote hiring has significantly increased.",
+        "Usage grew rapidly after the launch.",
+        "This greatly reduces memory use.",
+        "Over the past few years, the team has expanded.",
+    ])
+    def test_unquantified_trend_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any(i.startswith("Unquantified trend") for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "Remote hiring increased by 40% between 2021 and 2024.",
+        "Latency dropped sharply from 900 ms to 120 ms.",
+        "The rapidly changing schema broke the parser.",
+        "Memory use fell after the cache change.",
+    ])
+    def test_quantified_or_plain_trend_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(i.startswith("Unquantified trend") for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+
 class TestDecisiveness:
     """C11 — "decisive" importance-inflation frames, without flagging the
     ordinary military, sports and character senses of the adjective."""
