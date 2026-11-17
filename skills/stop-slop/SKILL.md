@@ -60,6 +60,7 @@ Before delivering prose:
 - Any "here's what/this/that" throat-clearing? Cut to the point.
 - Corrected subject or "not X, it's Y"? Review with [Binary Contrasts](../../references/structures.md#binary-contrasts).
 - Three consecutive sentences match length? Break one.
+- Two hedges in one paragraph ("That said," "Of course," "It's important to remember")? Keep one at most.
 - Paragraph ends with punchy one-liner? Vary it.
 - Em-dash anywhere? Remove it.
 - Vague declarative ("The implications are significant")? Name the specific implication.

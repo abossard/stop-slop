@@ -1287,6 +1287,48 @@ class TestRecapFrames:
         ), f"false positive on: {sentence!r}"
 
 
+class TestHedges:
+    """Hedge words within a sentence, paragraph hedges within a paragraph."""
+
+    def test_every_listed_hedge_word_matched(self, analyze_module):
+        """references/structures.md and HEDGE_WORD_RE list the same hedges."""
+        structures = (Path(__file__).parent.parent / "references" / "structures.md").read_text(
+            encoding="utf-8"
+        )
+        line = structures.split("**Hedge words to watch:**", 1)[1].split("\n", 1)[0]
+        listed = [w.strip().rstrip(".") for w in line.split(",") if w.strip()]
+        assert len(listed) > 10, "the hedge list in structures.md was not found"
+        missed = [w for w in listed if not analyze_module.HEDGE_WORD_RE.fullmatch(w)]
+        assert missed == []
+
+    def test_contracted_hedge_counts(self, analyze_module):
+        result = analyze_module.analyze_text("It's possible that the cache may fail.")
+        assert any(i.startswith("Hedge stacking: 2") for i in _issues_of(result))
+
+    @pytest.mark.parametrize("text", [
+        "It's worth noting that remote teams vary. "
+        "It's important to remember that culture matters.",
+        "That said, the picture is mixed. Of course, this isn't the whole picture.",
+        "- That said, the cache helps.\n- Of course, it costs memory.",
+    ])
+    def test_paragraph_hedge_stack_flagged(self, analyze_module, text):
+        issues = [i for i in _issues_of(analyze_module.analyze_text(text))
+                  if i.startswith("Paragraph hedge stack")]
+        assert len(issues) == 1, f"expected one issue for: {text!r}, got {issues}"
+
+    @pytest.mark.parametrize("text", [
+        "That said, the cache helps.\n\nOf course, it costs memory.",
+        "That said, the cache helps. It costs memory.",
+        "The plan needed a change of course. Anyone that said otherwise was wrong.",
+        "Retries are a matter of course here. The whole picture is in the dashboard.",
+    ])
+    def test_single_or_literal_not_flagged(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert not any(i.startswith("Paragraph hedge stack") for i in _issues_of(result)), (
+            f"false positive on: {text!r}"
+        )
+
+
 class TestDecisiveness:
     """C11 — "decisive" importance-inflation frames, without flagging the
     ordinary military, sports and character senses of the adjective."""

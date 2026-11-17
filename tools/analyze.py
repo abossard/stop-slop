@@ -26,6 +26,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import math
 import re
@@ -405,6 +406,33 @@ PREVIEW_FRAME_RE = re.compile(
     r"mentioning)|at\s+play|that\s+come\s+into\s+play)\b"
 )
 
+# Hedge words from "Hedge words to watch" in references/structures.md. Two in
+# one sentence are a hedge stack. A test keeps the two lists in sync. Matched
+# on a _phrase_form, so "it's likely that" counts.
+HEDGE_WORD_RE = re.compile(
+    r"\b(?:may|might|could|possibly|potentially|perhaps|arguably|typically|"
+    r"often|generally|tends?\s+to|in\s+some\s+cases|it\s+is\s+possible\s+that|"
+    r"it\s+is\s+likely\s+that|to\s+some\s+extent|more\s+or\s+less)\b"
+)
+
+# Paragraph hedges qualify a stretch of text instead of one claim. One is
+# fine. Two or more in a paragraph hedge its start, middle and end.
+# Wikipedia's Signs of AI writing names "important to note" as an LLM
+# disclaimer, and its Manual of Style lists "it should be noted" and "of
+# course" as editorializing. "That said" needs its comma, so a relative clause
+# ("anyone that said otherwise") stays out, and "change of course" and
+# "matter of course" are literal. Matched on a _phrase_form.
+PARAGRAPH_HEDGE_RE = re.compile(
+    r"\b(?:it\s+is\s+(?:important|crucial|essential)\s+to\s+(?:note|remember|"
+    r"keep\s+in\s+mind|mention|recognize|acknowledge)"
+    r"|it\s+is\s+worth\s+(?:noting|remembering|mentioning|pointing\s+out)"
+    r"|it\s+should\s+be\s+noted"
+    r"|that\s+said(?=\s*,)|having\s+said\s+that|that\s+being\s+said|with\s+that\s+said"
+    r"|(?<!change\s)(?<!matter\s)of\s+course"
+    r"|(?:is|isn't|is\s+not)\s+(?:the\s+)?(?:whole|full|complete|entire)\s+"
+    r"(?:picture|story))\b"
+)
+
 EM_DASH = "\u2014"
 
 # Minimum POS tokens before syntactic-template rates are stable enough to
@@ -503,6 +531,7 @@ LIST_ITEM_RE = re.compile(r"^\s*(?:[-+*]\s+|\d+[.)]\s+)")
 BLOCKQUOTE_RE = re.compile(r"^\s*>\s?")
 TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
 SENTENCE_BREAK_RE = re.compile(r"(?<=[.!?])\s+")
+BLANK_LINE_RE = re.compile(r"\n[ \t]*\n")
 ORDERED_MARKER_RE = re.compile(r"\s*(?:>\s*)*\d+[.)]")
 WORD_CHAR_RE = re.compile(r"\w")
 INLINE_CODE_RE = re.compile(r"(?<!`)(`+)(?!`)[^`\n]+?(?<!`)\1(?!`)")
@@ -606,6 +635,30 @@ def _split_sentence_spans(text: str, masked: str) -> list[dict]:
                 block = (block[0], end)
         emit(block)
     return spans
+
+
+def _paragraph_ids(text: str, sentence_spans: list[dict]) -> list[int]:
+    """Number each sentence's paragraph. Blank lines separate paragraphs."""
+    breaks = [match.start() for match in BLANK_LINE_RE.finditer(text)]
+    return [bisect.bisect_right(breaks, span["start"]) for span in sentence_spans]
+
+
+def _paragraph_hedge_issues(phrase_forms: list[str], paragraph_ids: list[int]) -> dict[int, str]:
+    """Report each paragraph with two or more paragraph hedges once.
+
+    The issue goes to the sentence holding the second hedge and lists every
+    hedge in the paragraph.
+    """
+    by_paragraph: dict[int, list[tuple[int, str]]] = {}
+    for idx, form in enumerate(phrase_forms):
+        for hit in PARAGRAPH_HEDGE_RE.findall(form):
+            by_paragraph.setdefault(paragraph_ids[idx], []).append((idx, " ".join(hit.split())))
+    issues = {}
+    for hits in by_paragraph.values():
+        if len(hits) >= 2:
+            names = ", ".join(f'"{hit}"' for _, hit in hits)
+            issues[hits[1][0]] = f"Paragraph hedge stack: {names}: keep one at most"
+    return issues
 
 
 def _word_tokenize(text: str) -> list[str]:
@@ -1122,9 +1175,18 @@ def _compute_readability(text: str) -> float:
 def _generate_findings(
     sentences: list[str], shown: list[str], spacy_lemmas: dict,
     passive_data: list[bool], sentence_tokens: list[list],
+    paragraph_ids: list[int] | None = None,
 ) -> list[dict]:
-    """Per-sentence findings with sentence indices and issues."""
+    """Per-sentence findings with sentence indices and issues.
+
+    paragraph_ids numbers each sentence's paragraph. Without it, the whole
+    text counts as one paragraph.
+    """
     findings = []
+    if paragraph_ids is None:
+        paragraph_ids = [0] * len(sentences)
+    phrase_forms = [_phrase_form(sent.lower()) for sent in sentences]
+    paragraph_hedges = _paragraph_hedge_issues(phrase_forms, paragraph_ids)
 
     for idx, sent in enumerate(sentences):
         issues = []
@@ -1152,7 +1214,7 @@ def _generate_findings(
 
         # Check AI phrases
         sent_lower = sent.lower()
-        phrase_form = _phrase_form(sent_lower)
+        phrase_form = phrase_forms[idx]
         matched_phrases = set(AI_PHRASE_RE.findall(phrase_form))
         for phrase in AI_PHRASES:
             if phrase in matched_phrases:
@@ -1176,16 +1238,15 @@ def _generate_findings(
             )
 
         # Check hedge stacking (≥2 hedges in one sentence)
-        hedge_words = re.findall(
-            r'\b(?:may|might|could|possibly|potentially|perhaps|arguably|'
-            r'typically|often|generally|tends?\s+to|in\s+some\s+cases)\b',
-            sent_lower
-        )
+        hedge_words = [" ".join(hit.split()) for hit in HEDGE_WORD_RE.findall(phrase_form)]
         if len(hedge_words) >= 2:
             issues.append(
                 f"Hedge stacking: {len(hedge_words)} hedges "
                 f"({', '.join(hedge_words)})"
             )
+
+        if idx in paragraph_hedges:
+            issues.append(paragraph_hedges[idx])
 
         # Check AI-typical sentence starters (Przystalski et al. 2025)
         sent_stripped = sent_lower.lstrip()
@@ -1336,7 +1397,10 @@ def analyze_text(text: str) -> dict:
         for tok in tokens
         if not tok.is_punct
     ]
-    findings = _generate_findings(sentences, shown, spacy_lemmas, passive_data, sentence_tokens)
+    findings = _generate_findings(
+        sentences, shown, spacy_lemmas, passive_data, sentence_tokens,
+        _paragraph_ids(text, sentence_spans),
+    )
     textstat_metrics = _compute_textstat_metrics(prose_text, sentence_tokens)
     visual_findings, bold_density = _detect_visuals(raw_text, len(words))
 

@@ -183,6 +183,14 @@ Two or more hedges within a short window (1–2 sentences). AI text hedges compu
 
 **Rule:** One hedge per claim maximum. If you hedge, commit to the hedge: "X is possible" is fine. "X could potentially be possible in some cases" is AI. Pick the strongest version of what you mean and say it.
 
+`tools/analyze.py` flags two hedge words in one sentence as `Hedge stacking`, and a test keeps its list in sync with the one above.
+
+### Paragraph Hedges
+
+Some hedges qualify a stretch of text instead of one claim: "It's important to remember", "It's worth noting", "That said,", "Of course,", "this isn't the whole picture". One is fine. A paragraph that hedges at its start, middle and end commits to nothing. Wikipedia's [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Hedging_disclaimers_about_source_availability_and_recommended_usage) names "important to note" as an LLM disclaimer, and its Manual of Style lists "it should be noted" and "of course" as [editorializing](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Editorializing).
+
+**Rule:** one paragraph hedge per paragraph at most. `tools/analyze.py` flags two or more in one paragraph as `Paragraph hedge stack`. Blank lines separate paragraphs, so a list without blank lines counts as one.
+
 ## Symmetric List Bloat
 
 AI loves balanced, parallel structures — especially three items where each gets equal treatment regardless of importance.
