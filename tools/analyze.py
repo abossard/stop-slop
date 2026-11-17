@@ -141,6 +141,24 @@ AI_SENTENCE_STARTERS = [
     "notably,", "specifically,", "crucially,", "importantly,",
 ]
 
+# Filler phrases from the "Also cut these filler phrases" list in
+# references/phrases.md. "It's worth noting" and "In today's [X]" are on that
+# list too, but AI_PHRASES and AI_SENTENCE_STARTERS already flag them, so one
+# phrase yields one issue. "At its core" and "at the end of the day" also have
+# a literal sense ("the backup runs at the end of the day"), so only the
+# comma-set discourse use counts, as with "to be clear," further down.
+FILLER_PHRASE_RES = {
+    "at its core": re.compile(r"\bat its core\s*,", re.IGNORECASE),
+    "at the end of the day": re.compile(r"\bat the end of the day\s*,", re.IGNORECASE),
+    "when it comes to": re.compile(
+        r"\bwhen it comes to\b"
+        r"(?!\s+(?:(?:a|an)\s+(?:stop|halt|standstill|rest|end|close)|life)\b)",
+        re.IGNORECASE,
+    ),
+    "in a world where": re.compile(r"\bin a world where\b", re.IGNORECASE),
+    "the reality is": re.compile(r"\bthe reality is\b", re.IGNORECASE),
+}
+
 # --- Model-era signature markers ---
 # Rare but highly diagnostic tics. Measured at 19.5 hits per 100k words on
 # Opus 5 (~0.2/1000), far below the >10/1000 AI-vocabulary density flag, so
@@ -958,6 +976,15 @@ def _match_labels(sent: str, patterns: list) -> list[str]:
     return hits
 
 
+def _phrase_form(sent_lower: str) -> str:
+    """Spell "it's" as "it is" with a straight apostrophe.
+
+    AI_PHRASES and AI_SENTENCE_STARTERS are written uncontracted with straight
+    apostrophes, so "It's worth noting" and "In today’s" would otherwise slip.
+    """
+    return re.sub(r"\bit's\b", "it is", sent_lower.replace("’", "'"))
+
+
 def _compute_passive_voice_rate(sentences: list[str], passive_data: list[bool]) -> float:
     """Fraction of sentences with passive voice."""
     if not sentences:
@@ -1005,10 +1032,15 @@ def _generate_findings(
 
         # Check AI phrases
         sent_lower = sent.lower()
-        matched_phrases = set(AI_PHRASE_RE.findall(sent_lower))
+        phrase_form = _phrase_form(sent_lower)
+        matched_phrases = set(AI_PHRASE_RE.findall(phrase_form))
         for phrase in AI_PHRASES:
             if phrase in matched_phrases:
                 issues.append(f"AI-typical phrase: \"{phrase}\"")
+
+        for phrase, pattern in FILLER_PHRASE_RES.items():
+            if pattern.search(sent):
+                issues.append(f'Filler phrase: "{phrase}": cut it and state the point')
 
         # Check passive voice
         if passive_data[idx] and not any(tok.dep_ == "agent" for tok in tokens):
@@ -1037,8 +1069,9 @@ def _generate_findings(
 
         # Check AI-typical sentence starters (Przystalski et al. 2025)
         sent_stripped = sent_lower.lstrip()
+        phrase_start = phrase_form.lstrip()
         for starter in AI_SENTENCE_STARTERS:
-            if sent_stripped.startswith(starter):
+            if phrase_start.startswith(starter):
                 issues.append(
                     f"AI-typical starter: \"{starter.rstrip(',')}\""
                 )

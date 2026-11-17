@@ -1,6 +1,7 @@
 """Tests for analyze.py — AI slop detection tool."""
 
 import json
+import re
 import subprocess
 import sys
 import textwrap
@@ -1135,6 +1136,65 @@ class TestThroatClearing:
         assert not any("Throat-clearing" in i for i in _issues_of(result)), (
             f"false positive on: {sentence!r}"
         )
+
+
+class TestFillerPhrases:
+    """The filler phrases listed in references/phrases.md are flagged."""
+
+    @pytest.mark.parametrize("sentence,phrase", [
+        ("When it comes to caching, the proxy wins.", "when it comes to"),
+        ("At the end of the day, the proxy wins.", "at the end of the day"),
+        ("The proxy is, at its core, a cache.", "at its core"),
+        ("In a world where latency matters, the proxy wins.", "in a world where"),
+        ("The reality is that the proxy wins.", "the reality is"),
+    ])
+    def test_filler_flagged(self, analyze_module, sentence, phrase):
+        result = analyze_module.analyze_text(sentence)
+        assert f'Filler phrase: "{phrase}"' in " | ".join(_issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "The backup runs at the end of the day.",
+        "The reactor overheated at its core.",
+        "The train brakes hard when it comes to a stop.",
+        "The reality isn't settled yet.",
+        "Its core module loads first.",
+    ])
+    def test_literal_use_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any("Filler phrase" in i for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence,issue", [
+        ("It's worth noting that the proxy caches.",
+         'AI-typical phrase: "it is worth noting"'),
+        ("It’s important to note that the proxy caches.",
+         'AI-typical phrase: "it is important to note"'),
+        ("In today’s market, the proxy wins.",
+         "AI-typical starter: \"in today's\""),
+    ])
+    def test_contracted_and_curly_forms_flagged(self, analyze_module, sentence, issue):
+        result = analyze_module.analyze_text(sentence)
+        assert issue in _issues_of(result), f"not flagged: {sentence!r}"
+
+    def test_every_listed_filler_phrase_flagged(self, analyze_module):
+        """references/phrases.md and the analyzer cover the same filler phrases."""
+        phrases = (Path(__file__).parent.parent / "references" / "phrases.md").read_text(
+            encoding="utf-8"
+        )
+        section = phrases.split("Also cut these filler phrases:", 1)[1].split("\n## ", 1)[0]
+        listed = re.findall(r'^- "(.+)"$', section, re.MULTILINE)
+        assert listed, "the filler list in phrases.md was not found"
+        labels = ("Filler phrase", "AI-typical phrase", "AI-typical starter")
+        missed = []
+        for item in listed:
+            sentence = item.replace("[X]", "market") + ", the proxy wins."
+            issues = _issues_of(analyze_module.analyze_text(sentence))
+            if not any(i.startswith(labels) for i in issues):
+                missed.append(item)
+        assert missed == []
 
 
 class TestDecisiveness:

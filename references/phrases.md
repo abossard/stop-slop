@@ -127,6 +127,8 @@ Also cut these filler phrases:
 - "In a world where"
 - "The reality is"
 
+`tools/analyze.py` flags each phrase, written with "it's" or "it is" and with straight or curly apostrophes. "At its core" and "At the end of the day" count only before a comma, where they open a claim, so "the backup runs at the end of the day" stays unflagged. "When it comes to a stop" is skipped for the same reason.
+
 ## Meta-Commentary
 
 Remove self-referential asides. The essay should move, not announce its own structure.
