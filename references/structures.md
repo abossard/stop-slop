@@ -128,6 +128,7 @@ Keep openers that identify a condition or cause. "What makes this hard is..." be
 | Every paragraph ends punchily | Vary endings |
 | Em-dashes | Remove. Use commas or periods. No em dashes at all. |
 | Staccato fragmentation | Don't stack short punchy sentences |
+| Every paragraph the same length and shape | Let each paragraph's length follow its content |
 | "Not always. Not perfectly." | Hedging disguised as reassurance |
 
 ## Word Patterns
@@ -183,6 +184,14 @@ Two or more hedges within a short window (1–2 sentences). AI text hedges compu
 
 **Rule:** One hedge per claim maximum. If you hedge, commit to the hedge: "X is possible" is fine. "X could potentially be possible in some cases" is AI. Pick the strongest version of what you mean and say it.
 
+`tools/analyze.py` flags two hedge words in one sentence as `Hedge stacking`, and a test keeps its list in sync with the one above.
+
+### Paragraph Hedges
+
+Some hedges qualify a stretch of text instead of one claim: "It's important to remember", "It's worth noting", "That said,", "Of course,", "this isn't the whole picture". One is fine. A paragraph that hedges at its start, middle and end commits to nothing. Wikipedia's [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Hedging_disclaimers_about_source_availability_and_recommended_usage) names "important to note" as an LLM disclaimer, and its Manual of Style lists "it should be noted" and "of course" as [editorializing](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Editorializing).
+
+**Rule:** one paragraph hedge per paragraph at most. `tools/analyze.py` flags two or more in one paragraph as `Paragraph hedge stack`. Blank lines separate paragraphs, so a list without blank lines counts as one.
+
 ## Symmetric List Bloat
 
 AI loves balanced, parallel structures — especially three items where each gets equal treatment regardless of importance.
@@ -195,6 +204,8 @@ AI loves balanced, parallel structures — especially three items where each get
 | Every list has exactly 3 items | Artificial completeness |
 
 **Instead:** Vary list lengths. Give more space to things that deserve it. Two items are fine. One item is fine. Not everything needs a counterpoint.
+
+Wikipedia's Signs of AI writing names the [rule of three](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Rule_of_three) as an LLM habit: "adjective, adjective, adjective" and "short phrase, short phrase, and short phrase". `tools/analyze.py` reports `coordination_lengths` (pairs, triads and longer series) without a threshold. Three is the shortest series, so triads lead in ordinary prose too. Compare the counts between drafts of the same text, and check whether pairs and single points are missing.
 
 ## Negation-as-Proof
 
@@ -227,6 +238,31 @@ All three carry one instruction: **"Mutate the tree and rerun the guard. It has 
 | 3. Importance label | "The mutate-and-rerun step is the load-bearing half" |
 
 **Instead:** Keep the claim and any distinct constraints or exceptions; cut repeated paraphrases and importance labels. For a negation tail, use [Negation-as-Proof](#negation-as-proof).
+
+## Recap Frames
+
+Restatement at the scale of a whole text. The opening restates the question, the body answers it, and the closing restates the answer. The reader gets each point three times: promised, made and summarized.
+
+| Pattern | Fix |
+|---------|-----|
+| "When it comes to X, there are several key factors to consider." | Start with the first factor |
+| "In summary," / "To sum up," / "In short," opening the last paragraph | End on the last new fact or the next action |
+| A last paragraph that repeats the body in other words | Cut it |
+
+Overview first still holds. An overview names what follows ("Setup has three steps: install, configure, verify."), and a preview frame only promises it.
+
+`tools/analyze.py` flags `Recap opener` and `Preview frame`. A closing paragraph that restates the body without these phrases still needs a reader to catch it.
+
+## Pet Words
+
+A word or metaphor that does connective work across a whole text: "seam" in the first paragraph, again in the fourth, again in the conclusion. Matt Pocock named the habit "seamslop" after a model kept reaching for "seam" ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), sign 2). Topic terms recur because they name the subject. A pet word recurs because the writer reached for it again.
+
+| Pattern | Fix |
+|---------|-----|
+| Same metaphor in three or more paragraphs ("seam," "journey," "landscape") | Use it once, then name the thing it stands for |
+| Same connector opening most transitions | Let the content connect the sentences, or vary the transition |
+
+To check, skim only the verbs and connecting phrases. `tools/analyze.py` catches the metaphorical "seam" as a signature marker and measures overall repetition with TTR, MTLD and Yule's K. To a word counter, a pet word looks like a topic term, so the rest needs a reader.
 
 ## Em-Dash Bold Clause
 

@@ -17,6 +17,14 @@ These sources back the analyzer signals and the clarity and visual rules. Strong
 | Reinhart et al. (2025) | Present participle clauses, nominalizations and passive voice separate LLM from human text | *PNAS* 122, e2422455122; arXiv:2410.16107 |
 | Muñoz-Ortiz et al. (2024) | LLM news text has longer dependency distances | *Artificial Intelligence Review* 57, 265; arXiv:2308.09067 |
 | Geng & Trotta (2025) | Word lists decay: "delve" fell after its overuse was publicized | ACL Findings 2025; arXiv:2502.09606 |
+| Wikipedia Manual of Style, Words to watch | Unsupported attributions: "research has shown", "many scholars state", "it is widely thought" | [Unsupported attributions](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Unsupported_attributions) |
+| Wikipedia, Signs of AI writing | LLM text credits vague authorities: "Experts argue", "Industry reports" | [Vague attributions](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Vague_attributions_and_overgeneralization_of_opinions) |
+| Wikipedia, Signs of AI writing | "Important to note" disclaimers in LLM text | [Hedging disclaimers](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Hedging_disclaimers_about_source_availability_and_recommended_usage) |
+| Wikipedia, Signs of AI writing | Rule of three: "adjective, adjective, adjective", "short phrase, short phrase, and short phrase" | [Rule of three](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Rule_of_three) |
+| Wikipedia, Signs of AI writing | "Serves as", "stands as" and "boasts" in place of "is" and "has" | [Avoidance of basic copulatives](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Avoidance_of_basic_copulatives_%28%22is%22/%22are%22_phrases%29) |
+| Paul Graham, reported by explainx.ai (2026) | Dramatic verbs: "drew" for "got", "unveiled" for "showed". Anecdotal, second-hand | [Top 10 Signs of AI-Generated Text](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), bonus sign |
+| Wikipedia Manual of Style, Words to watch | Editorializing: "it should be noted", "of course", "arguably" | [Editorializing](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Editorializing) |
+| Thakker, explainx.ai (2026) | Practitioner checklist: hedges spread across a paragraph, an opening that restates the question and a closing that restates the answer, buzzword clusters with "unlock", "elevate", "journey" and "game-changer", pet words reused across paragraphs ("seamslop"), paragraphs of even length | [Top 10 Signs of AI-Generated Text](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), signs 2, 5, 6, 8 and 10 |
 
 Key findings:
 - **Top 4 discriminating features** (Opara 2024): UniqueWordCount, StopWordCount, TTR, HapaxLegomenonRate

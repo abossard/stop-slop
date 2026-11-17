@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-17
+
+### Added
+- `tools/analyze.py` flags unsourced attributions ("studies show", "many experts agree", "it is widely believed") and trends with no number ("has significantly increased", "in recent years"). A determiner or possessive before the noun, a citation in the sentence, or a digit exempts the sentence. `references/phrases.md` lists the patterns under Unsourced Claims.
+- `tools/analyze.py` flags recap openers ("In summary,", "To sum up,", "In short,") and preview frames that promise factors without naming them ("there are several key factors to consider"). `references/structures.md` describes both under Recap Frames.
+- `tools/analyze.py` flags a paragraph with two or more paragraph hedges ("That said,", "Of course,", "It's important to remember"). Blank lines separate paragraphs. `references/structures.md` describes them under Paragraph Hedges.
+- `tools/analyze.py` flags three different words from its AI vocabulary lists in one paragraph as `Buzzword cluster`, the rule `references/phrases.md` already gave. Tier 2 adds "unlock", "elevate", "journey" and "game-changer", flagged only next to another signal or in a cluster.
+- `tools/analyze.py` flags inflated verbs ("unveiled", "forged a partnership", "delivered a keynote", "drew 100 votes", "serves as a") and suggests the plain one. `references/phrases.md` lists them under Inflated Verbs. Only "serves as" has a written source. The others come from one anecdote, and the section says so.
+- `tools/analyze.py` reports `coordination_lengths`: pairs, triads and longer series, from spaCy's coordination parse. It has no threshold and adds no finding, because three is the shortest series and triads lead in ordinary prose too.
+- `references/structures.md` describes pet words, a metaphor or connector reused across a whole text, and adds paragraphs of even length to Rhythm Patterns. Neither has an analyzer check, because a counter cannot tell a pet word from a topic term.
+
+### Changed
+- The `Hedge stacking` check covers the whole "Hedge words to watch" list in `references/structures.md`. It adds "it is possible that", "it is likely that", "to some extent" and "more or less", and a test keeps the two lists in sync.
+
+### Fixed
+- `tools/analyze.py` reads "it's" as "it is" and accepts curly apostrophes when it matches AI phrases and sentence starters. "It's worth noting", "It’s important to note" and "In today’s" went unflagged before.
+- `tools/analyze.py` flags the filler phrases that `references/phrases.md` tells writers to cut: "at its core", "at the end of the day", "when it comes to", "in a world where" and "the reality is". Each yields a `Filler phrase` issue. "At its core" and "at the end of the day" need a following comma, so their literal sense stays unflagged. A test checks every phrase on that list against the analyzer.
+
 ## 2026-10-19
 
 ### Fixed

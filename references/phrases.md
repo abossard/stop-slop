@@ -97,6 +97,23 @@ Write the short common word. `tools/analyze.py` flags each left-hand entry as `P
 | utilization | use |
 | utilize | use |
 
+## Inflated Verbs
+
+A dramatic verb where a plain one says the same. Paul Graham reported the pattern ("drew 100 votes" for "got 100 votes"), and a 2026 practitioner checklist ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), bonus sign) collects his examples. Wikipedia's Signs of AI writing lists "serves as", "stands as" and "functions as" under [avoidance of basic copulatives](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Avoidance_of_basic_copulatives_%28%22is%22/%22are%22_phrases%29). No frequency study backs this list, so treat a hit as a prompt to check.
+
+| Instead of | Write |
+|------------|-------|
+| unveiled | showed, released, announced |
+| forged a partnership / an alliance | made a deal, signed an agreement |
+| delivered a keynote / a talk | gave a talk |
+| drew 100 votes | got 100 votes |
+| serves as a / stands as a / functions as a | is a |
+| skyrocketed | rose, with the number |
+| unleashed | released, used |
+| supercharges | speeds up, with the number |
+
+`tools/analyze.py` flags these as `Inflated verb`. "Forge," "deliver" and "draw" have ordinary senses, so they count only in the frames above: "a forged SMS" and "delivers the messages" stay unflagged.
+
 ## Adverbs
 
 Cut empty intensifiers and the assertion adverbs listed under [Assertion Adverbs](#assertion-adverbs). Keep an adverb that carries a fact the sentence needs: when, how often, or how ("retry twice," "rotate slowly").
@@ -126,6 +143,8 @@ Also cut these filler phrases:
 - "When it comes to"
 - "In a world where"
 - "The reality is"
+
+`tools/analyze.py` flags each phrase, written with "it's" or "it is" and with straight or curly apostrophes. "At its core" and "At the end of the day" count only before a comma, where they open a claim, so "the backup runs at the end of the day" stays unflagged. "When it comes to a stop" is skipped for the same reason.
 
 ## Meta-Commentary
 
@@ -171,6 +190,21 @@ Sentences that announce importance without naming the specific thing. Kill these
 - "The consequences are real"
 
 If a sentence says something is important/deep/structural without showing the specific thing, cut it or replace it with the specific thing.
+
+## Unsourced Claims
+
+A claim credited to "studies," "experts" or "research" sounds checked, but it gives the reader nothing to check. Wikipedia's Manual of Style calls these [unsupported attributions](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Unsupported_attributions), and its [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Vague_attributions_and_overgeneralization_of_opinions) page lists them as an LLM habit. A trend told with an intensifier instead of a number has the same problem.
+
+| Pattern | Fix |
+|---------|-----|
+| "Studies show" / "Research indicates" / "Evidence suggests" | Name the study, or cut the claim |
+| "Many experts agree" / "Observers note" / "Some people say" | Name who said it |
+| "It is widely believed" / "is widely regarded as" | Name who believes it, or state the fact |
+| "According to experts" | Name the expert |
+| "has significantly increased" / "grew rapidly" | Give the number and the period |
+| "In recent years" / "Over the past few years" | Name the years |
+
+`tools/analyze.py` flags these as `Unsourced attribution` and `Unquantified trend`. A determiner or possessive before the noun names a source ("our research shows", "Google's researchers found"). So does a citation in the same sentence: a link, a footnote, "et al." or a year in parentheses. Any digit in the sentence counts as a number.
 
 ## Technical-Register Slop
 
@@ -373,6 +407,19 @@ Words that appear far more often in AI-generated text than human-written text. F
 | this underscores | 3.8× | |
 
 **Rule:** If your text uses more than 2 words from this list in a single paragraph, rewrite. Each one alone is a mild signal; clustered, they scream "AI."
+
+`tools/analyze.py` flags three different words from these tables or its tier-2 list (`AI_TIER2_WORDS`) in one paragraph as `Buzzword cluster`. A word repeated counts once, so "the key ... each key" is not a cluster.
+
+### Practitioner-Reported Buzzwords
+
+No frequency ratio exists for these yet. A 2026 practitioner checklist ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), signs 2 and 10) names them next to "delve" and "landscape". Each has a literal use ("unlock the mutex", "customer journey"), so the analyzer keeps them in tier 2 and flags them only next to another signal or in a cluster.
+
+| Word | Use instead |
+|------|-------------|
+| unlock (value, potential) | Say what becomes possible |
+| elevate | Improve, raise |
+| journey (as a metaphor) | The steps or events themselves |
+| game-changer | See Business Jargon above. Say what changed |
 
 ### Academic Slop Phrases
 

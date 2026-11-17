@@ -1,6 +1,7 @@
 """Tests for analyze.py — AI slop detection tool."""
 
 import json
+import re
 import subprocess
 import sys
 import textwrap
@@ -1135,6 +1136,298 @@ class TestThroatClearing:
         assert not any("Throat-clearing" in i for i in _issues_of(result)), (
             f"false positive on: {sentence!r}"
         )
+
+
+class TestFillerPhrases:
+    """The filler phrases listed in references/phrases.md are flagged."""
+
+    @pytest.mark.parametrize("sentence,phrase", [
+        ("When it comes to caching, the proxy wins.", "when it comes to"),
+        ("At the end of the day, the proxy wins.", "at the end of the day"),
+        ("The proxy is, at its core, a cache.", "at its core"),
+        ("In a world where latency matters, the proxy wins.", "in a world where"),
+        ("The reality is that the proxy wins.", "the reality is"),
+    ])
+    def test_filler_flagged(self, analyze_module, sentence, phrase):
+        result = analyze_module.analyze_text(sentence)
+        assert f'Filler phrase: "{phrase}"' in " | ".join(_issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "The backup runs at the end of the day.",
+        "The reactor overheated at its core.",
+        "The train brakes hard when it comes to a stop.",
+        "The reality isn't settled yet.",
+        "Its core module loads first.",
+    ])
+    def test_literal_use_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any("Filler phrase" in i for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence,issue", [
+        ("It's worth noting that the proxy caches.",
+         'AI-typical phrase: "it is worth noting"'),
+        ("It’s important to note that the proxy caches.",
+         'AI-typical phrase: "it is important to note"'),
+        ("In today’s market, the proxy wins.",
+         "AI-typical starter: \"in today's\""),
+    ])
+    def test_contracted_and_curly_forms_flagged(self, analyze_module, sentence, issue):
+        result = analyze_module.analyze_text(sentence)
+        assert issue in _issues_of(result), f"not flagged: {sentence!r}"
+
+    def test_every_listed_filler_phrase_flagged(self, analyze_module):
+        """references/phrases.md and the analyzer cover the same filler phrases."""
+        phrases = (Path(__file__).parent.parent / "references" / "phrases.md").read_text(
+            encoding="utf-8"
+        )
+        section = phrases.split("Also cut these filler phrases:", 1)[1].split("\n## ", 1)[0]
+        listed = re.findall(r'^- "(.+)"$', section, re.MULTILINE)
+        assert listed, "the filler list in phrases.md was not found"
+        labels = ("Filler phrase", "AI-typical phrase", "AI-typical starter")
+        missed = []
+        for item in listed:
+            sentence = item.replace("[X]", "market") + ", the proxy wins."
+            issues = _issues_of(analyze_module.analyze_text(sentence))
+            if not any(i.startswith(labels) for i in issues):
+                missed.append(item)
+        assert missed == []
+
+
+class TestVagueClaims:
+    """Claims credited to nobody, and trends told without a number."""
+
+    @pytest.mark.parametrize("sentence", [
+        "Studies show that remote workers are happier.",
+        "Research indicates that hybrid models win.",
+        "Many experts agree that offices will shrink.",
+        "It’s widely believed that caching fixes this.",
+        "According to experts, the API is stable.",
+        "Industry reports suggest the market is growing.",
+        "Some people say the tool is slow.",
+        "Postgres is widely regarded as the safe default.",
+        "Observers note that the market shifted.",
+    ])
+    def test_unsourced_attribution_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any(i.startswith("Unsourced attribution") for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "Our research shows a drop in tail latency.",
+        "The two studies found no effect.",
+        "Google's researchers found the bug.",
+        "Recent studies show a shift in vocabulary [1].",
+        "Studies show the shift ([Kobak et al.](https://arxiv.org/abs/2406.07016)).",
+        "The experts on call agreed to roll back.",
+        "The study shows no regression.",
+    ])
+    def test_named_or_cited_source_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(i.startswith("Unsourced attribution") for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "In recent years, remote hiring has significantly increased.",
+        "Usage grew rapidly after the launch.",
+        "This greatly reduces memory use.",
+        "Over the past few years, the team has expanded.",
+    ])
+    def test_unquantified_trend_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any(i.startswith("Unquantified trend") for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "Remote hiring increased by 40% between 2021 and 2024.",
+        "Latency dropped sharply from 900 ms to 120 ms.",
+        "The rapidly changing schema broke the parser.",
+        "Memory use fell after the cache change.",
+    ])
+    def test_quantified_or_plain_trend_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(i.startswith("Unquantified trend") for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+
+class TestRecapFrames:
+    """Closing recaps and opening previews that restate instead of adding."""
+
+    @pytest.mark.parametrize("sentence,label", [
+        ("In summary, remote work is shaped by these factors.", "Recap opener"),
+        ("To sum up: the cache wins.", "Recap opener"),
+        ("- In short, the proxy wins.", "Recap opener"),
+        ("When it comes to remote work, there are several key factors to consider.",
+         "Preview frame"),
+        ("There are many things to keep in mind before you deploy.", "Preview frame"),
+    ])
+    def test_frames_flagged(self, analyze_module, sentence, label):
+        result = analyze_module.analyze_text(sentence)
+        assert any(i.startswith(label) for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "Overall, latency fell 30% after the change.",
+        "In short order the queue drained.",
+        "There are three ways to install the tool.",
+        "There are several ways to install the tool.",
+        "The summary lists the steps in short form.",
+    ])
+    def test_ordinary_use_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(
+            i.startswith(("Recap opener", "Preview frame")) for i in _issues_of(result)
+        ), f"false positive on: {sentence!r}"
+
+
+class TestHedges:
+    """Hedge words within a sentence, paragraph hedges within a paragraph."""
+
+    def test_every_listed_hedge_word_matched(self, analyze_module):
+        """references/structures.md and HEDGE_WORD_RE list the same hedges."""
+        structures = (Path(__file__).parent.parent / "references" / "structures.md").read_text(
+            encoding="utf-8"
+        )
+        line = structures.split("**Hedge words to watch:**", 1)[1].split("\n", 1)[0]
+        listed = [w.strip().rstrip(".") for w in line.split(",") if w.strip()]
+        assert len(listed) > 10, "the hedge list in structures.md was not found"
+        missed = [w for w in listed if not analyze_module.HEDGE_WORD_RE.fullmatch(w)]
+        assert missed == []
+
+    def test_contracted_hedge_counts(self, analyze_module):
+        result = analyze_module.analyze_text("It's possible that the cache may fail.")
+        assert any(i.startswith("Hedge stacking: 2") for i in _issues_of(result))
+
+    @pytest.mark.parametrize("text", [
+        "It's worth noting that remote teams vary. "
+        "It's important to remember that culture matters.",
+        "That said, the picture is mixed. Of course, this isn't the whole picture.",
+        "- That said, the cache helps.\n- Of course, it costs memory.",
+    ])
+    def test_paragraph_hedge_stack_flagged(self, analyze_module, text):
+        issues = [i for i in _issues_of(analyze_module.analyze_text(text))
+                  if i.startswith("Paragraph hedge stack")]
+        assert len(issues) == 1, f"expected one issue for: {text!r}, got {issues}"
+
+    @pytest.mark.parametrize("text", [
+        "That said, the cache helps.\n\nOf course, it costs memory.",
+        "That said, the cache helps. It costs memory.",
+        "The plan needed a change of course. Anyone that said otherwise was wrong.",
+        "Retries are a matter of course here. The whole picture is in the dashboard.",
+    ])
+    def test_single_or_literal_not_flagged(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert not any(i.startswith("Paragraph hedge stack") for i in _issues_of(result)), (
+            f"false positive on: {text!r}"
+        )
+
+
+class TestBuzzwordClusters:
+    """Three different AI-list words in one paragraph."""
+
+    @pytest.mark.parametrize("text", [
+        "This will unlock new value and elevate your journey.",
+        "Delve into the tapestry of this landscape.",
+        "We leverage the cache. It is robust. The ecosystem grows.",
+        "It is a game-changer that will elevate and unlock the team.",
+    ])
+    def test_cluster_flagged_once(self, analyze_module, text):
+        issues = [i for i in _issues_of(analyze_module.analyze_text(text))
+                  if i.startswith("Buzzword cluster")]
+        assert len(issues) == 1, f"expected one issue for: {text!r}, got {issues}"
+
+    @pytest.mark.parametrize("text", [
+        "Rotate the API key. The key is stored in the vault. Each key expires.",
+        "We leverage the cache.\n\nIt is robust.\n\nThe ecosystem grows.",
+        "Unlock the mutex before you return.",
+        "Map the customer journey before the workshop.",
+    ])
+    def test_repeats_and_spread_not_flagged(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert not any(i.startswith("Buzzword cluster") for i in _issues_of(result)), (
+            f"false positive on: {text!r}"
+        )
+
+
+class TestInflatedVerbs:
+    """Dramatic verbs where a plain one says the same."""
+
+    @pytest.mark.parametrize("sentence,plain", [
+        ("The post drew 100 votes.", '"got"'),
+        ("She delivered a keynote at the summit.", '"gave"'),
+        ("The two firms forged a strategic partnership last spring.", '"made"'),
+        ("Apple unveiled the new laptop on Tuesday.", '"showed"'),
+        ("The README serves as the entry point.", '"is"'),
+        ("The proxy functions as a cache.", '"is"'),
+        ("Signups skyrocketed after launch.", '"rose"'),
+        ("The new cache supercharges the build.", '"speeds up"'),
+    ])
+    def test_inflated_verbs_flagged(self, analyze_module, sentence, plain):
+        issues = [i for i in _issues_of(analyze_module.analyze_text(sentence))
+                  if i.startswith("Inflated verb")]
+        assert issues and plain in issues[0], f"not flagged: {sentence!r} -> {issues}"
+
+    @pytest.mark.parametrize("sentence", [
+        "The smith forged the blade by hand.",
+        "The courier delivered the package.",
+        "She drew a diagram of the flow.",
+        "He drew 3 cards from the deck.",
+        "The build serves static files.",
+        "The dog stands at the door.",
+    ])
+    def test_ordinary_senses_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(i.startswith("Inflated verb") for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+
+TRIAD_TEXT = (
+    "The platform is fast, reliable, and secure. "
+    "It saves time, money, and effort. "
+    "We tested it, fixed it, and shipped it."
+)
+
+
+class TestCoordinationLengths:
+    """Pairs, triads and longer series are counted, with no threshold."""
+
+    def test_triads_counted(self, analyze_module):
+        result = analyze_module.analyze_text(TRIAD_TEXT)
+        assert result["coordination_lengths"] == {"pairs": 0, "triads": 3, "longer": 0}
+
+    def test_pairs_and_longer_series_counted(self, analyze_module):
+        text = TRIAD_TEXT + (
+            " It runs on Windows, macOS, Linux, and BSD."
+            " The cache is small and fast."
+        )
+        result = analyze_module.analyze_text(text)
+        assert result["coordination_lengths"] == {"pairs": 1, "triads": 3, "longer": 1}
+
+    def test_clause_coordination_not_counted(self, analyze_module):
+        result = analyze_module.analyze_text("If it fails, retry and log.")
+        assert result["coordination_lengths"]["triads"] == 0
+
+    def test_no_finding_without_threshold(self, analyze_module):
+        """Three is the shortest series, so triads dominate ordinary text too."""
+        result = analyze_module.analyze_text(TRIAD_TEXT)
+        assert not any("three" in i.lower() for i in _issues_of(result))
+
+    def test_empty_input_has_coordination_key(self, analyze_module):
+        result = analyze_module.analyze_text("")
+        assert result["coordination_lengths"] == {"pairs": 0, "triads": 0, "longer": 0}
+
+    def test_human_output_prints_coordinations(self, analyze_module):
+        output = analyze_module._format_human(analyze_module.analyze_text(TRIAD_TEXT))
+        assert "Coordinations:       0 pairs, 3 triads, 0 longer" in output
 
 
 class TestDecisiveness:
