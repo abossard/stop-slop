@@ -1329,6 +1329,33 @@ class TestHedges:
         )
 
 
+class TestBuzzwordClusters:
+    """Three different AI-list words in one paragraph."""
+
+    @pytest.mark.parametrize("text", [
+        "This will unlock new value and elevate your journey.",
+        "Delve into the tapestry of this landscape.",
+        "We leverage the cache. It is robust. The ecosystem grows.",
+        "It is a game-changer that will elevate and unlock the team.",
+    ])
+    def test_cluster_flagged_once(self, analyze_module, text):
+        issues = [i for i in _issues_of(analyze_module.analyze_text(text))
+                  if i.startswith("Buzzword cluster")]
+        assert len(issues) == 1, f"expected one issue for: {text!r}, got {issues}"
+
+    @pytest.mark.parametrize("text", [
+        "Rotate the API key. The key is stored in the vault. Each key expires.",
+        "We leverage the cache.\n\nIt is robust.\n\nThe ecosystem grows.",
+        "Unlock the mutex before you return.",
+        "Map the customer journey before the workshop.",
+    ])
+    def test_repeats_and_spread_not_flagged(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert not any(i.startswith("Buzzword cluster") for i in _issues_of(result)), (
+            f"false positive on: {text!r}"
+        )
+
+
 class TestDecisiveness:
     """C11 — "decisive" importance-inflation frames, without flagging the
     ordinary military, sports and character senses of the adjective."""

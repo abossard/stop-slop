@@ -21,7 +21,7 @@ These sources back the analyzer signals and the clarity and visual rules. Strong
 | Wikipedia, Signs of AI writing | LLM text credits vague authorities: "Experts argue", "Industry reports" | [Vague attributions](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Vague_attributions_and_overgeneralization_of_opinions) |
 | Wikipedia, Signs of AI writing | "Important to note" disclaimers in LLM text | [Hedging disclaimers](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Hedging_disclaimers_about_source_availability_and_recommended_usage) |
 | Wikipedia Manual of Style, Words to watch | Editorializing: "it should be noted", "of course", "arguably" | [Editorializing](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Editorializing) |
-| Thakker, explainx.ai (2026) | Practitioner checklist: hedges spread across a paragraph, an opening that restates the question and a closing that restates the answer | [Top 10 Signs of AI-Generated Text](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), signs 5 and 8 |
+| Thakker, explainx.ai (2026) | Practitioner checklist: hedges spread across a paragraph, an opening that restates the question and a closing that restates the answer, buzzword clusters with "unlock", "elevate", "journey" and "game-changer" | [Top 10 Signs of AI-Generated Text](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), signs 2, 5, 8 and 10 |
 
 Key findings:
 - **Top 4 discriminating features** (Opara 2024): UniqueWordCount, StopWordCount, TTR, HapaxLegomenonRate

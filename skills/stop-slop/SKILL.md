@@ -78,6 +78,7 @@ Before delivering prose:
 - Two or more parentheticals in one sentence? Move the evidence to the end.
 - Sentence past 25 words? Find the second verb and start over there.
 - Rating your own work ("clean," "surgical," "robust," "elegant")? Give the number instead.
+- Three AI-list words in one paragraph ("leverage," "robust," "unlock")? Rewrite it in plain words.
 - Reply opens with "You're right" or "Good catch"? The correction shows it.
 - Instruction history in the deliverable? Describe behavior; see [Compliance Narration](../../references/structures.md#compliance-narration).
 - Asking yourself a question in quotes before answering it? Delete the question.

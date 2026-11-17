@@ -95,6 +95,10 @@ AI_TIER2_WORDS = {
     "align", "emphasize", "enhance", "highlight", "key", "profound",
     "renowned", "exemplify", "seamless",
     "decisive", "decisively", "decisiveness",
+    # Practitioner-reported, with no published frequency ratio (explainx.ai
+    # 2026, signs 2 and 10). Each has a literal use ("unlock the mutex",
+    # "customer journey"), so they stay in tier 2.
+    "unlock", "elevate", "journey", "game-changer",
 }
 
 AI_TRANSITIONS = {
@@ -126,6 +130,11 @@ AI_PHRASES = [
 
 # High-signal words used for primary AI vocab density (backward-compatible)
 ALL_AI_WORDS = AI_TIER1_VERBS | AI_TIER1_ADJECTIVES | AI_TIER1_NOUNS | AI_TRANSITIONS
+
+# references/phrases.md: more than two words from the AI vocabulary lists in
+# one paragraph calls for a rewrite. Tier-2 words count toward the cluster.
+CLUSTER_WORDS = ALL_AI_WORDS | AI_TIER2_WORDS
+BUZZWORD_CLUSTER_SIZE = 3
 
 # One compiled alternation instead of one scan per phrase. Longest-first so an
 # overlapping pair resolves to the more specific phrase.
@@ -661,6 +670,39 @@ def _paragraph_hedge_issues(phrase_forms: list[str], paragraph_ids: list[int]) -
     return issues
 
 
+def _lexicon_entry(word: str, spacy_lemmas: dict, lexicon: set[str]) -> str | None:
+    """The lexicon entry a word matches, by the same rules as _lexicon_hit."""
+    for candidate in (word, spacy_lemmas.get(word), _lemmatize_fallback(word, lexicon)):
+        if candidate in lexicon:
+            return candidate
+    return None
+
+
+def _buzzword_cluster_issues(
+    sentence_words: list[list[str]], spacy_lemmas: dict, paragraph_ids: list[int],
+) -> dict[int, str]:
+    """Report each paragraph with BUZZWORD_CLUSTER_SIZE different AI-list words once.
+
+    The issue goes to the sentence holding the word that completes the
+    cluster. Distinct entries count, so "the key ... each key" is one word.
+    """
+    found: dict[int, list[str]] = {}
+    issues = {}
+    for idx, words in enumerate(sentence_words):
+        entries = found.setdefault(paragraph_ids[idx], [])
+        already_reported = len(entries) >= BUZZWORD_CLUSTER_SIZE
+        for word in words:
+            entry = _lexicon_entry(word, spacy_lemmas, CLUSTER_WORDS)
+            if entry and entry not in entries:
+                entries.append(entry)
+        if not already_reported and len(entries) >= BUZZWORD_CLUSTER_SIZE:
+            issues[idx] = (
+                f"Buzzword cluster: {', '.join(entries)}: "
+                f"rewrite the paragraph in plain words"
+            )
+    return issues
+
+
 def _word_tokenize(text: str) -> list[str]:
     """Simple whitespace + punctuation tokenizer."""
     return re.findall(r"[a-z]+(?:[-'][a-z]+)*", text.lower())
@@ -1187,6 +1229,9 @@ def _generate_findings(
         paragraph_ids = [0] * len(sentences)
     phrase_forms = [_phrase_form(sent.lower()) for sent in sentences]
     paragraph_hedges = _paragraph_hedge_issues(phrase_forms, paragraph_ids)
+    buzzword_clusters = _buzzword_cluster_issues(
+        [_word_tokenize(sent) for sent in sentences], spacy_lemmas, paragraph_ids
+    )
 
     for idx, sent in enumerate(sentences):
         issues = []
@@ -1327,6 +1372,11 @@ def _generate_findings(
                     f"Tier-2 AI words clustered with other signals: "
                     f"{', '.join(sorted(set(tier2_found)))}"
                 )
+
+        # Three different AI-list words in one paragraph. Checked after the
+        # tier-2 note, so a cluster alone does not add that note too.
+        if idx in buzzword_clusters:
+            issues.append(buzzword_clusters[idx])
 
         if issues:
             findings.append({

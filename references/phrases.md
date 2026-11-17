@@ -391,6 +391,19 @@ Words that appear far more often in AI-generated text than human-written text. F
 
 **Rule:** If your text uses more than 2 words from this list in a single paragraph, rewrite. Each one alone is a mild signal; clustered, they scream "AI."
 
+`tools/analyze.py` flags three different words from these tables or its tier-2 list (`AI_TIER2_WORDS`) in one paragraph as `Buzzword cluster`. A word repeated counts once, so "the key ... each key" is not a cluster.
+
+### Practitioner-Reported Buzzwords
+
+No frequency ratio exists for these yet. A 2026 practitioner checklist ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), signs 2 and 10) names them next to "delve" and "landscape". Each has a literal use ("unlock the mutex", "customer journey"), so the analyzer keeps them in tier 2 and flags them only next to another signal or in a cluster.
+
+| Word | Use instead |
+|------|-------------|
+| unlock (value, potential) | Say what becomes possible |
+| elevate | Improve, raise |
+| journey (as a metaphor) | The steps or events themselves |
+| game-changer | See Business Jargon above. Say what changed |
+
 ### Academic Slop Phrases
 
 Tortured phrases and hedging language that spike in AI-generated academic text:
