@@ -54,6 +54,8 @@ Replace with plain language.
 
 Write the short common word. `tools/analyze.py` flags each left-hand entry as `Plain word`, in any case, with inflections of single words. Each entry comes from the [plainlanguage.gov Simple Words and Phrases](https://web.archive.org/web/20161223073724/http://www.plainlanguage.gov/howto/wordsuggestions/simplewords.cfm) list or the [Plain English Campaign A to Z of alternative words](https://web.archive.org/web/20200109034429/http://www.plainenglish.co.uk/files/alternative.pdf).
 
+"Implement," "however" and "currently" have common senses the swap misreads: "implement an interface" is not "do an interface", and "however you configure it" is not "but". The analyzer reports these three only next to another issue in the same sentence, the way it treats tier-2 words.
+
 | Instead of | Write |
 |------------|-------|
 | additional | more |

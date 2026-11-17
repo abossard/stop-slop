@@ -557,6 +557,12 @@ PLAIN_SWAPS = {
     "equivalent": "equal",  # PEC
 }
 PLAIN_SINGLE_WORDS = {word for word in PLAIN_SWAPS if " " not in word}
+# Swaps with a common sense the suggestion misreads: "implement an
+# interface" is not "do an interface", "however you configure it" is not
+# "but". Like tier-2 words, these are reported only next to another issue in
+# the same sentence. "Provide" stays flagged alone: the real before/after
+# pair 2 in the tests relies on it.
+PLAIN_SWAPS_IN_CLUSTERS = {"implement", "however", "currently"}
 PLAIN_PHRASE_RES = {
     phrase: re.compile(rf"\b{re.escape(phrase)}\b", re.IGNORECASE)
     for phrase in PLAIN_SWAPS if " " in phrase
@@ -845,12 +851,13 @@ def _plain_base(word: str, lemma: str) -> str | None:
     return base if base in PLAIN_SINGLE_WORDS else None
 
 
-def _plain_swap_hits(sent: str, tokens: list) -> list[tuple[str, str]]:
+def _plain_swap_hits(sent: str, tokens: list) -> list[tuple[str, str, str]]:
+    """(text as written, plain swap, PLAIN_SWAPS key) for each hit."""
     hits = []
     occupied = []
     for phrase, pattern in PLAIN_PHRASE_RES.items():
         for match in pattern.finditer(sent):
-            hits.append((match.group(0), PLAIN_SWAPS[phrase]))
+            hits.append((match.group(0), PLAIN_SWAPS[phrase], phrase))
             occupied.append(match.span())
 
     token_items = [
@@ -866,7 +873,7 @@ def _plain_swap_hits(sent: str, tokens: list) -> list[tuple[str, str]]:
             continue
         base = _plain_base(lower, lemma)
         if base:
-            hits.append((surface, PLAIN_SWAPS[base]))
+            hits.append((surface, PLAIN_SWAPS[base], base))
     return hits
 
 
@@ -1342,8 +1349,10 @@ def _generate_findings(
         if len(sent_words) > LONG_SENTENCE_WORDS:
             issues.append(f"Long sentence ({len(sent_words)} words)")
 
-        for found, plain in _plain_swap_hits(sent, tokens):
-            issues.append(f'Plain word: "{found}" -> "{plain}"')
+        deferred_plain = []
+        for found, plain, key in _plain_swap_hits(sent, tokens):
+            issue = f'Plain word: "{found}" -> "{plain}"'
+            (deferred_plain if key in PLAIN_SWAPS_IN_CLUSTERS else issues).append(issue)
 
         nominalizations = [tok.text.lower() for tok in tokens if _is_nominalization(tok)]
         verb_count = sum(1 for tok in tokens if tok.pos_ in ("VERB", "AUX"))
@@ -1468,6 +1477,10 @@ def _generate_findings(
                 hit = " ".join(found.group(0).split())
                 issues.append(f'Inflated verb: "{hit}": use {plain}')
                 break
+
+        # Plain swaps with a common technical sense, only next to another issue
+        if issues:
+            issues.extend(deferred_plain)
 
         # Tier-2 words are too common to flag alone; only when clustered
         # with another signal in the same sentence.

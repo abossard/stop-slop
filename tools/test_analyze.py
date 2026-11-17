@@ -378,6 +378,22 @@ class TestPlainWordSwaps:
         )
         assert not any("Plain word:" in i for i in _issues_of(result))
 
+    @pytest.mark.parametrize("text", [
+        "We implement the interface.",
+        "However you configure it, the cache warms up.",
+        "The job currently runs at night.",
+    ])
+    def test_technical_sense_alone_not_flagged(self, analyze_module, text):
+        """Issue #3 item 5: these swaps misread technical prose when alone."""
+        result = analyze_module.analyze_text(text)
+        assert not any("Plain word:" in i for i in _issues_of(result)), text
+
+    def test_technical_sense_flagged_next_to_another_issue(self, analyze_module):
+        result = analyze_module.analyze_text("We implement the interface in order to finish.")
+        issues = _issues_of(result)
+        assert 'Plain word: "in order to" -> "to"' in issues
+        assert 'Plain word: "implement" -> "do"' in issues
+
     def test_swap_list_has_no_ai_vocabulary(self, analyze_module):
         """One word yields one issue: AI-list words stay out of the swap list."""
         assert set(analyze_module.PLAIN_SWAPS) & analyze_module.ALL_AI_WORDS == set()
