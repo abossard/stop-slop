@@ -1458,7 +1458,7 @@ def _generate_findings(
         # Negation-then-correction frames
         claimed_by_parallelism = False
         for hit in _match_labels(sent, NEGATIVE_PARALLELISM_RES):
-            issues.append(f"Negative parallelism: \"{hit}\" — state the positive claim")
+            issues.append(f"Negative parallelism: \"{hit}\": state the positive claim")
             claimed_by_parallelism = True
             break
 
@@ -1476,18 +1476,18 @@ def _generate_findings(
         # hit the sentence-start anchors.
         sent_anchor = MARKDOWN_PREFIX_RE.sub("", sent_stripped)
         for hit in _match_labels(sent_anchor, SYCOPHANCY_RES):
-            issues.append(f"Sycophantic opener: \"{hit}\" — cut it and answer")
+            issues.append(f"Sycophantic opener: \"{hit}\": cut it and answer")
             break
 
         # Metadiscourse preamble (Hyland frame markers)
         for hit in _match_labels(sent, THROAT_CLEARING_RES):
-            issues.append(f"Throat-clearing: \"{hit}\" — state the point directly")
+            issues.append(f"Throat-clearing: \"{hit}\": state the point directly")
             break
 
         # Importance inflation via "decisive" (Wikipedia:Signs_of_AI_writing)
         for hit in _match_labels(sent, DECISIVENESS_RES):
             issues.append(
-                f"Importance inflation: \"{hit}\" — name what actually changed"
+                f"Importance inflation: \"{hit}\": name what actually changed"
             )
             break
 

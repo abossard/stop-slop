@@ -45,7 +45,7 @@ Eliminate predictable AI writing patterns from prose.
 Before delivering prose longer than ~100 words, run the slopometer:
 
 - Command: `../../tools/slopometer --json` (reads stdin). The path is relative to this file, like the reference links. The shell starts in the user's project, so resolve it first.
-- Parse with `jq` — never `grep`/`sed` over JSON
+- Parse with `jq`, never with `grep` or `sed`
 - Exit 3: show the user the banner and stop; estimate no metrics.
 - The analyzer skips inline code, URLs and text in double quotes, so a quoted word counts as a mention.
 - `language_warning` set: the text is not English, and the word lists and detectors are. Tell the user, apply the structural rules by hand, and treat an empty `findings` as unchecked.
@@ -108,12 +108,12 @@ For each offender, tag it with one emoji and a one-line roast. Roast the sentenc
 
 | Emoji | Offense |
 |-------|---------|
-| 🤖 | Robotic phrasing — sounds like a chatbot wrote it |
-| 💀 | Dead cliché — "It's important to note," "In today's world" |
-| 🎭 | Fake drama — manufactured urgency or gravity |
-| 🪞 | Self-referential — the text talks about itself |
-| 🫠 | Cringe filler — adds nothing, sounds desperate to fill space |
-| 🦜 | Parrot — repeats the same idea in slightly different words |
+| 🤖 | Robotic phrasing: sounds like a chatbot wrote it |
+| 💀 | Dead cliché: "It's important to note," "In today's world" |
+| 🎭 | Fake drama: manufactured urgency or gravity |
+| 🪞 | Self-referential: the text talks about itself |
+| 🫠 | Cringe filler: adds nothing, sounds desperate to fill space |
+| 🦜 | Parrot: repeats the same idea in slightly different words |
 | 🖼️ | Decorative visual: a diagram or table that repeats the explanation without clarifying structure, or an emoji used as ornament |
 
 **Format:**

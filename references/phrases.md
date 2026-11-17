@@ -272,7 +272,7 @@ Adverbs that assert the writer checked something. They carry no information abou
 | cleanly | 235 | Aesthetic claim posing as a test result |
 | genuinely | 178 | Doubles down on a claim already made |
 | precisely | 38 | Same as "exactly" |
-| properly / strictly / explicitly | — | Same family |
+| properly / strictly / explicitly | n/a | Same family |
 
 **Fix:** delete the adverb. If the sentence weakens, the missing information was never in the adverb.
 
@@ -457,7 +457,7 @@ Tortured phrases and hedging language that spike in AI-generated academic text:
 
 These are hallmarks of academic AI slop. In non-academic writing, they read as pompous filler. In academic writing, they signal the author let AI do the thinking.
 
-### Kobak "Common 10" — Aggregate LLM Frequency Markers
+### Kobak "Common 10": Aggregate LLM Frequency Markers
 
 Ten words whose combined frequency strongly predicts LLM-assisted text (Kobak et al. 2025, *Science Advances* Vol.11 No.27, Δcommon=0.134). Individually common in technical writing; clustered, they signal AI.
 
@@ -501,7 +501,7 @@ Sources: [claude-code#53454](https://github.com/anthropics/claude-code/issues/53
 
 ### Importance Inflation: "decisive"
 
-LLM prose upgrades ordinary facts into turning points. Wikipedia's *Signs of AI writing* names the move — "a crucial/pivotal/vital role/moment", "key turning point", "marks a shift" — and `decisive` performs the same upgrade for causation and outcomes.
+LLM prose upgrades ordinary facts into turning points. Wikipedia's *Signs of AI writing* names the move: "a crucial/pivotal/vital role/moment", "key turning point", "marks a shift". The adjective `decisive` performs the same upgrade for causation and outcomes.
 
 `decisive` is absent from the Kobak et al. excess-vocabulary list, and no published AI/human frequency ratio exists for it. It also has an ordinary register in military, sports, election and character writing. So it is not treated as a density word: `tools/analyze.py` matches the collocations, not the adjective.
 

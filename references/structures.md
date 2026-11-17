@@ -196,7 +196,7 @@ Some hedges qualify a stretch of text instead of one claim: "It's important to r
 
 ## Symmetric List Bloat
 
-AI loves balanced, parallel structures — especially three items where each gets equal treatment regardless of importance.
+AI loves balanced, parallel structures, especially three items that each get equal treatment regardless of importance.
 
 | Pattern | Problem |
 |---------|---------|
