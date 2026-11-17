@@ -1429,6 +1429,47 @@ TRIAD_TEXT = (
 )
 
 
+class TestChatLeftovers:
+    """Issue #3 item 6: sign-offs and knowledge-cutoff disclaimers."""
+
+    @pytest.mark.parametrize("text", [
+        "The fix is on main.\n\nI hope this helps! Let me know if you have any questions.",
+        "The fix is on main. Would you like me to add tests?",
+        "Feel free to reach out with more questions.",
+    ])
+    def test_sign_off_in_last_paragraph_flagged(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert any(i.startswith("Chatbot sign-off") for i in _issues_of(result)), text
+
+    @pytest.mark.parametrize("text", [
+        "Let me know if you need the logs from Monday.\n\nThe API returns JSON.",
+        "Let me know if Tuesday works.",
+    ])
+    def test_request_mid_text_or_specific_not_flagged(self, analyze_module, text):
+        result = analyze_module.analyze_text(text)
+        assert not any(i.startswith("Chatbot sign-off") for i in _issues_of(result)), text
+
+    @pytest.mark.parametrize("sentence", [
+        "As of my last update, the API had three endpoints.",
+        "Based on available information, the release ships in May.",
+        "As an AI language model, I cannot browse the web.",
+        "As an AI, I have no opinion on tabs.",
+        "While specific details are limited, the firm grew fast.",
+    ])
+    def test_cutoff_disclaimer_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert any(i.startswith("Cutoff disclaimer") for i in _issues_of(result)), sentence
+
+    @pytest.mark.parametrize("sentence", [
+        "As of the last update, the API had three endpoints.",
+        "The training data lives in S3.",
+        "The guide frames uniform rhythm as an AI tell.",
+    ])
+    def test_ordinary_use_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(i.startswith("Cutoff disclaimer") for i in _issues_of(result)), sentence
+
+
 GERMAN_TEXT = (
     "Es ist wichtig zu beachten, dass dieses robuste System nicht nur schnell, "
     "sondern auch zuverlässig ist. Die Lösung bietet eine nahtlose Integration "

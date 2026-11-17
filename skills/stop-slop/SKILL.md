@@ -83,6 +83,7 @@ Before delivering prose:
 - Rating your own work ("clean," "surgical," "robust," "elegant")? Give the number instead.
 - Three AI-list words in one paragraph ("leverage," "robust," "unlock")? Rewrite it in plain words.
 - Reply opens with "You're right" or "Good catch"? The correction shows it.
+- Ends with "I hope this helps" or "Would you like me to"? Cut it. "As of my last update"? Check the source instead.
 - Instruction history in the deliverable? Describe behavior; see [Compliance Narration](../../references/structures.md#compliance-narration).
 - Asking yourself a question in quotes before answering it? Delete the question.
 - "Three X, each closed/covered/measured"? Drop the count and the grade, keep the list.

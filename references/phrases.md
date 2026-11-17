@@ -208,6 +208,18 @@ A claim credited to "studies," "experts" or "research" sounds checked, but it gi
 
 `tools/analyze.py` flags these as `Unsourced attribution` and `Unquantified trend`. A determiner or possessive before the noun names a source ("our research shows", "Google's researchers found"). So does a citation in the same sentence: a link, a footnote, "et al." or a year in parentheses. Any digit in the sentence counts as a number.
 
+## Chat Leftovers
+
+Phrases from a chat window that end up in a document. Wikipedia's Signs of AI writing lists sign-offs under [collaborative communication](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Collaborative_communication) and source disclaimers under [hedging disclaimers](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Hedging_disclaimers_about_source_availability_and_recommended_usage).
+
+| Pattern | Fix |
+|---------|-----|
+| "I hope this helps" / "Let me know if you have any questions" / "Would you like me to..." | Cut it. The reader asks if they need more. |
+| "As of my last update" / "Based on available information" / "As an AI language model" | Check the source and state what it says, or cut the claim |
+| "While specific details are limited" | Say which detail is missing, or leave the gap out |
+
+`tools/analyze.py` flags `Chatbot sign-off` only in the last paragraph, because "Let me know if you need the logs" can be an ordinary request mid-email. It flags `Cutoff disclaimer` anywhere.
+
 ## Technical-Register Slop
 
 Technical writing rarely contains "delve" or "tapestry." Its filler is "load-bearing," "not merely," "deliberately" and "exactly." Each of these defends a claim against doubt the reader never raised, and none of them adds a fact.

@@ -488,6 +488,33 @@ INFLATED_VERB_RES = [
     (re.compile(r"\bsupercharg(?:e|es|ed|ing)\b"), '"speeds up" with the number'),
 ]
 
+# Chat leftovers in a deliverable. Sign-offs offer more help or hope the text
+# helped. Wikipedia's Signs of AI writing lists them under collaborative
+# communication. Only the last paragraph counts, because "Let me know if you
+# need the logs" can be an ordinary request mid-email. Matched on a
+# _phrase_form.
+SIGN_OFF_RE = re.compile(
+    r"\b(?:i\s+hope\s+(?:this|that|it)\s+helps|hope\s+(?:this|that)\s+helps|"
+    r"let\s+me\s+know\s+if\s+you\s+(?:have|need|want|would\s+like|'d\s+like)|"
+    r"feel\s+free\s+to\s+(?:ask|reach\s+out|let\s+me\s+know)|"
+    r"would\s+you\s+like\s+me\s+to|do\s+you\s+want\s+me\s+to|"
+    r"if\s+you\s+have\s+any\s+(?:other\s+|further\s+|more\s+)?questions|"
+    r"is\s+there\s+anything\s+else|happy\s+to\s+help)\b"
+)
+
+# Knowledge-cutoff and source disclaimers. Wikipedia's Signs of AI writing
+# lists "based on available information" and "While specific details are
+# limited" among hedging disclaimers. Matched anywhere on a _phrase_form.
+CUTOFF_DISCLAIMER_RE = re.compile(
+    r"\b(?:as\s+of\s+my\s+(?:last\s+)?(?:knowledge\s+)?(?:update|cutoff|cut-off|training)|"
+    r"my\s+(?:knowledge\s+cutoff|knowledge\s+cut-off|training\s+data)|"
+    r"based\s+on\s+(?:the\s+)?(?:available|my)\s+(?:information|knowledge|data)|"
+    r"i\s+(?:do\s+not|don't|cannot|can't)\s+(?:have\s+)?(?:access\s+to\s+)?"
+    r"(?:real-time|current|up-to-date|live)\s+(?:information|data)|"
+    r"as\s+an\s+ai\s+(?:language\s+)?(?:model|assistant)|as\s+an\s+ai(?=\s*,)|"
+    r"while\s+specific\s+details\s+are\s+(?:limited|scarce))\b"
+)
+
 EM_DASH = "\u2014"
 
 # Minimum POS tokens before syntactic-template rates are stable enough to
@@ -1340,6 +1367,7 @@ def _generate_findings(
     buzzword_clusters = _buzzword_cluster_issues(
         [_word_tokenize(sent) for sent in sentences], spacy_lemmas, paragraph_ids
     )
+    last_paragraph = paragraph_ids[-1] if paragraph_ids else 0
 
     for idx, sent in enumerate(sentences):
         issues = []
@@ -1477,6 +1505,17 @@ def _generate_findings(
                 hit = " ".join(found.group(0).split())
                 issues.append(f'Inflated verb: "{hit}": use {plain}')
                 break
+
+        # Chat leftovers: sign-offs in the last paragraph, cutoff disclaimers anywhere
+        if paragraph_ids[idx] == last_paragraph:
+            found = SIGN_OFF_RE.search(phrase_form)
+            if found:
+                hit = " ".join(found.group(0).split())
+                issues.append(f'Chatbot sign-off: "{hit}": cut it')
+        found = CUTOFF_DISCLAIMER_RE.search(phrase_form)
+        if found:
+            hit = " ".join(found.group(0).split())
+            issues.append(f'Cutoff disclaimer: "{hit}": check the source or cut it')
 
         # Plain swaps with a common technical sense, only next to another issue
         if issues:
