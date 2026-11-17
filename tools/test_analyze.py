@@ -423,6 +423,22 @@ class TestNonProseMasking:
         assert any("Plain word:" in i for i in _issues_of(result)) is flagged
         assert result["word_count"] == words
 
+    @pytest.mark.parametrize("text", [
+        'Cut the tics of technical writing ("load-bearing", "not merely").',
+        '"Implement an interface" stays.',
+        "The word “utilize” is on the list.",
+    ])
+    def test_quoted_words_are_mentions(self, analyze_module, text):
+        """Issue #3 item 3: a quoted word is mentioned, not used."""
+        assert _issues_of(analyze_module.analyze_text(text)) == []
+
+    def test_text_outside_quotes_still_checked(self, analyze_module):
+        result = analyze_module.analyze_text('The "pool" utilizes memory.')
+        assert 'Plain word: "utilizes" -> "use"' in _issues_of(result)
+
+    def test_quoted_text_leaves_word_count(self, analyze_module):
+        assert analyze_module.analyze_text('Say "hello world" twice.')["word_count"] == 2
+
 
 class TestNominalizations:
     """C0-4 - stacked zombie nouns are flagged."""

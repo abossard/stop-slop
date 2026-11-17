@@ -12,6 +12,7 @@
 - `references/structures.md` describes pet words, a metaphor or connector reused across a whole text, and adds paragraphs of even length to Rhythm Patterns. Neither has an analyzer check, because a counter cannot tell a pet word from a topic term.
 
 ### Changed
+- The analyzer skips text in double quotes, straight or curly, as it skips inline code. A quoted word is mentioned, not used, so `("load-bearing", "not merely")` no longer counts as writing "load-bearing". Single quotes stay, because ' and ’ are also apostrophes. Issue #3, item 3.
 - The `Hedge stacking` check covers the whole "Hedge words to watch" list in `references/structures.md`. It adds "it is possible that", "it is likely that", "to some extent" and "more or less", and a test keeps the two lists in sync.
 
 ### Fixed

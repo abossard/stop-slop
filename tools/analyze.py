@@ -592,11 +592,16 @@ WORD_CHAR_RE = re.compile(r"\w")
 INLINE_CODE_RE = re.compile(r"(?<!`)(`+)(?!`)[^`\n]+?(?<!`)\1(?!`)")
 LINK_TARGET_RE = re.compile(r"(?<=\])\([^)\s]*(?:\s+\"[^\"]*\")?\)")
 BARE_URL_RE = re.compile(r"https?://[^\s<>]*[^\s<>.,;:!?)\]]")
+# Text in straight or curly double quotes on one line. A quoted word is
+# mentioned, not used: `("load-bearing", "not merely")` must not count as
+# writing "load-bearing". Single quotes stay, because ' and ’ are also
+# apostrophes. The length cap keeps an unmatched quote from blanking a line.
+QUOTED_RE = re.compile(r'"[^"\n]{1,200}"|“[^”\n]{1,200}”')
 
 
 def _mask_non_prose(text: str) -> str:
-    """Blank inline code, link targets and bare URLs, keeping every offset."""
-    for pattern in (INLINE_CODE_RE, LINK_TARGET_RE, BARE_URL_RE):
+    """Blank inline code, link targets, bare URLs and quoted text, keeping every offset."""
+    for pattern in (INLINE_CODE_RE, LINK_TARGET_RE, BARE_URL_RE, QUOTED_RE):
         text = pattern.sub(lambda match: " " * len(match.group(0)), text)
     return text
 

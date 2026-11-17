@@ -47,6 +47,7 @@ Before delivering prose longer than ~100 words, run the slopometer:
 - Command: `../../tools/slopometer --json` (reads stdin). The path is relative to this file, like the reference links. The shell starts in the user's project, so resolve it first.
 - Parse with `jq` — never `grep`/`sed` over JSON
 - Exit 3: show the user the banner and stop; estimate no metrics.
+- The analyzer skips inline code, URLs and text in double quotes, so a quoted word counts as a mention.
 
 Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate, coordination_lengths, findings[], visual_findings[]) to prioritize edits, then re-run after revision.
 
