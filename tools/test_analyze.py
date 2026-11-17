@@ -1413,6 +1413,41 @@ TRIAD_TEXT = (
 )
 
 
+GERMAN_TEXT = (
+    "Es ist wichtig zu beachten, dass dieses robuste System nicht nur schnell, "
+    "sondern auch zuverlässig ist. Die Lösung bietet eine nahtlose Integration "
+    "in bestehende Abläufe und stärkt die Zusammenarbeit im Team. Darüber hinaus "
+    "spielt sie eine zentrale Rolle für die digitale Transformation."
+)
+
+
+class TestLanguageCheck:
+    """Issue #3 item 4: non-English text must not come back looking clean."""
+
+    def test_german_text_warned(self, analyze_module):
+        result = analyze_module.analyze_text(GERMAN_TEXT)
+        assert result["word_count"] >= 30
+        assert result["english_stopword_share"] < 0.10
+        assert "does not look like English" in result["language_warning"]
+
+    def test_human_output_leads_with_warning(self, analyze_module):
+        output = analyze_module._format_human(analyze_module.analyze_text(GERMAN_TEXT))
+        assert output.splitlines()[2].startswith("⚠ The text does not look like English")
+
+    @pytest.mark.parametrize("text", [AI_TEXT, HUMAN_TEXT])
+    def test_english_text_not_warned(self, analyze_module, text):
+        assert analyze_module.analyze_text(text)["language_warning"] is None
+
+    def test_short_text_not_judged(self, analyze_module):
+        result = analyze_module.analyze_text("Die Lösung ist schnell und zuverlässig.")
+        assert result["language_warning"] is None
+
+    def test_empty_input_has_language_keys(self, analyze_module):
+        result = analyze_module.analyze_text("")
+        assert result["english_stopword_share"] == 0
+        assert result["language_warning"] is None
+
+
 class TestCoordinationLengths:
     """Pairs, triads and longer series are counted, with no threshold."""
 

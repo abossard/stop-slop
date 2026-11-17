@@ -10,6 +10,7 @@
 - `tools/analyze.py` flags inflated verbs ("unveiled", "forged a partnership", "delivered a keynote", "drew 100 votes", "serves as a") and suggests the plain one. `references/phrases.md` lists them under Inflated Verbs. Only "serves as" has a written source. The others come from one anecdote, and the section says so.
 - `tools/analyze.py` reports `coordination_lengths`: pairs, triads and longer series, from spaCy's coordination parse. It has no threshold and adds no finding, because three is the shortest series and triads lead in ordinary prose too.
 - `references/structures.md` describes pet words, a metaphor or connector reused across a whole text, and adds paragraphs of even length to Rhythm Patterns. Neither has an analyzer check, because a counter cannot tell a pet word from a topic term.
+- `tools/analyze.py` reports `english_stopword_share` and sets `language_warning` when a text of 30 words or more has under 10% English function words. German prose scores 3 to 4%, English 13% and up, with a median of 51% over 88 markdown files. Before, a German paragraph full of AI phrases came back with no findings. Issue #3, item 4.
 
 ### Changed
 - The analyzer skips text in double quotes, straight or curly, as it skips inline code. A quoted word is mentioned, not used, so `("load-bearing", "not merely")` no longer counts as writing "load-bearing". Single quotes stay, because ' and ’ are also apostrophes. Issue #3, item 3.

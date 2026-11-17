@@ -495,6 +495,13 @@ EM_DASH = "\u2014"
 TEMPLATE_MIN_TOKENS = 100
 LONG_SENTENCE_WORDS = 25
 SUBJECT_VERB_GAP = 10
+# English prose is about half function words ("the", "of", "and"), measured
+# with spaCy's English stop list: a median of 0.51 over 88 English markdown
+# files, 0.13 for the lowest, a table-heavy reference page. German prose
+# scores 0.03 to 0.04. Below the floor the text is reported as not English.
+# Short texts vary too much to tell.
+ENGLISH_STOPWORD_FLOOR = 0.10
+ENGLISH_CHECK_MIN_WORDS = 30
 NOMINALIZATION_SUFFIXES = (
     "tion", "sion", "ment", "ance", "ence", "ity", "ness",
 )
@@ -911,6 +918,26 @@ def _subject_verb_gaps(tokens: list) -> list[tuple[str, str, int]]:
         if gap >= SUBJECT_VERB_GAP:
             gaps.append((tok.text, head.text, gap))
     return gaps
+
+
+def _language_check(words: list[str]) -> tuple[float, str | None]:
+    """Share of English stop words, and a warning when the text is not English.
+
+    Every word list and detector here is English, so other languages would
+    otherwise come back with no findings and look clean.
+    """
+    from spacy.lang.en.stop_words import STOP_WORDS
+
+    if not words:
+        return 0.0, None
+    share = round(sum(1 for w in words if w in STOP_WORDS) / len(words), 3)
+    if len(words) >= ENGLISH_CHECK_MIN_WORDS and share < ENGLISH_STOPWORD_FLOOR:
+        return share, (
+            f"The text does not look like English ({share:.0%} English function "
+            f"words). The analyzer checks English only, so no findings here does "
+            f"not mean the text is clean."
+        )
+    return share, None
 
 
 def _coordination_lengths(tokens: list) -> list[int]:
@@ -1503,6 +1530,8 @@ def analyze_text(text: str) -> dict:
             "visual_findings": [],
             "bold_density": 0,
             "coordination_lengths": {"pairs": 0, "triads": 0, "longer": 0},
+            "english_stopword_share": 0,
+            "language_warning": None,
             "findings": [],
         }
 
@@ -1537,6 +1566,7 @@ def analyze_text(text: str) -> dict:
     textstat_metrics = _compute_textstat_metrics(prose_text, sentence_tokens)
     visual_findings, bold_density = _detect_visuals(raw_text, len(words))
     coordinations = [n for tokens in sentence_tokens for n in _coordination_lengths(tokens)]
+    english_share, language_warning = _language_check(words)
 
     result = {
         "word_count": len(words),
@@ -1577,6 +1607,8 @@ def analyze_text(text: str) -> dict:
             "triads": coordinations.count(3),
             "longer": sum(1 for n in coordinations if n > 3),
         },
+        "english_stopword_share": english_share,
+        "language_warning": language_warning,
         "findings": findings,
     }
     result.update(textstat_metrics)
@@ -1598,6 +1630,10 @@ def _format_human(result: dict) -> str:
     """Format results for human reading."""
     lines = []
     lines.append("═══ AI Slop Analysis ═══\n")
+
+    if result.get("language_warning"):
+        lines.append(f"⚠ {result['language_warning']}")
+        lines.append("")
 
     lines.append(f"Words: {result['word_count']}  |  Sentences: {result['sentence_count']}")
     lines.append("")
