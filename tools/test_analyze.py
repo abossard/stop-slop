@@ -1778,9 +1778,23 @@ import shutil
 WRAPPER = str(Path(__file__).parent / "slopometer")
 
 
-def _path_without(binary: str) -> str:
-    """Return a PATH string with directories containing `binary` removed."""
-    keep = []
+# Programs the wrapper runs besides its runner: bash for the shebang, dirname,
+# and python3 for the fallback.
+WRAPPER_TOOLS = ("bash", "dirname", "python3")
+
+
+def _path_without(binary: str, shim_dir: Path) -> str:
+    """Return a PATH on which `binary` is not found.
+
+    Directories holding `binary` are dropped. When uv lives in /usr/bin, as
+    with the Arch package, that would drop bash and python3 with it, so the
+    wrapper's tools are linked into shim_dir first and shim_dir leads the PATH.
+    """
+    for tool in WRAPPER_TOOLS:
+        found = shutil.which(tool)
+        if found:
+            (shim_dir / tool).symlink_to(found)
+    keep = [str(shim_dir)]
     for entry in os.environ.get("PATH", "").split(os.pathsep):
         candidate = os.path.join(entry, binary)
         if not (os.path.isfile(candidate) and os.access(candidate, os.X_OK)):
@@ -1805,7 +1819,7 @@ def _python3_has_deps(env: dict) -> bool:
 class TestWrapper:
     """slopometer wrapper: prefers uv, falls back to python3."""
 
-    def test_emits_valid_json(self, scenario, expected_runner, skip_if_missing):
+    def test_emits_valid_json(self, scenario, expected_runner, skip_if_missing, tmp_path):
         if shutil.which(skip_if_missing) is None:
             pytest.skip(f"{skip_if_missing} not available")
 
@@ -1814,7 +1828,7 @@ class TestWrapper:
         if scenario == "uv":
             env["PATH"] = os.environ["PATH"]
         else:
-            env["PATH"] = _path_without("uv")
+            env["PATH"] = _path_without("uv", tmp_path)
 
         proc = subprocess.run(
             [WRAPPER, "--json"],

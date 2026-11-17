@@ -21,6 +21,7 @@
 
 ### Fixed
 - The skill's own instructions used em dashes while telling the agent to use none: `SKILL.md` (the `jq` line and the Wall of Shame table), `structures.md` and `phrases.md`. They now use colons, commas and periods. Four analyzer messages ("Negative parallelism", "Sycophantic opener", "Throat-clearing", "Importance inflation") drop theirs too. Specimens of the em-dash pattern keep it. Issue #3, item 7b.
+- `TestWrapper`'s python3-fallback case passes where uv lives in `/usr/bin`, as with the Arch package. Dropping uv's directory from PATH used to drop bash with it, and the wrapper exited 127. The test now links bash, dirname and python3 into a temp directory first. Issue #3, item 7c.
 - `tools/analyze.py` reads "it's" as "it is" and accepts curly apostrophes when it matches AI phrases and sentence starters. "It's worth noting", "It’s important to note" and "In today’s" went unflagged before.
 - `tools/analyze.py` flags the filler phrases that `references/phrases.md` tells writers to cut: "at its core", "at the end of the day", "when it comes to", "in a world where" and "the reality is". Each yields a `Filler phrase` issue. "At its core" and "at the end of the day" need a following comma, so their literal sense stays unflagged. A test checks every phrase on that list against the analyzer.
 
