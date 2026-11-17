@@ -442,6 +442,45 @@ PARAGRAPH_HEDGE_RE = re.compile(
     r"(?:picture|story))\b"
 )
 
+# A dramatic verb where a plain one says the same: "unveiled" for "showed",
+# "drew 100 votes" for "got 100 votes". Paul Graham reported the pattern, and
+# explainx.ai (2026) collects his examples. No frequency study exists, so
+# these are prompts to check. "Serves as" and "stands as" for "is" come from
+# Wikipedia's Signs of AI writing (avoidance of basic copulatives). "Forge",
+# "deliver" and "draw" have ordinary senses, so they match only in the frames
+# below. Words already in the AI vocabulary lists ("showcase", "garner",
+# "boast", "spearhead", "elevate") stay there. Matched on a _phrase_form.
+INFLATED_VERB_RES = [
+    (re.compile(r"\bunveil(?:s|ed|ing)?\b"), '"showed", "released" or "announced"'),
+    (
+        re.compile(
+            r"\bforg(?:e|es|ed|ing)\s+(?:(?:a|an|the|new|strong|strategic|close|"
+            r"lasting|deep)\s+)*(?:partnerships?|alliances?|deals?|relationships?|"
+            r"ties|bonds?|connections?|path)\b"
+        ),
+        '"made", "signed" or "built"',
+    ),
+    (
+        re.compile(
+            r"\bdeliver(?:s|ed|ing)?\s+(?:(?:a|an|the|his|her|their|our|its)\s+)?"
+            r"(?:[\w-]+\s+)?(?:keynotes?|talks?|speech(?:es)?|presentations?|lectures?)\b"
+        ),
+        '"gave"',
+    ),
+    (
+        re.compile(
+            r"\bdr(?:ew|aws?|awing|awn)\s+(?:(?:over|more\s+than|nearly|almost|about|"
+            r"around|roughly|some)\s+)?[\d,.]+k?\s+(?:votes|upvotes|visitors|views|"
+            r"attendees|sign-?ups|users|comments|responses|downloads|stars)\b"
+        ),
+        '"got"',
+    ),
+    (re.compile(r"\b(?:serves|served|serving|stands|stood)\s+as\s+(?:a|an|the)\b"), '"is"'),
+    (re.compile(r"\bskyrocket(?:s|ed|ing)?\b"), '"rose" with the number'),
+    (re.compile(r"\bunleash(?:es|ed|ing)?\b"), '"released" or "used"'),
+    (re.compile(r"\bsupercharg(?:e|es|ed|ing)\b"), '"speeds up" with the number'),
+]
+
 EM_DASH = "\u2014"
 
 # Minimum POS tokens before syntactic-template rates are stable enough to
@@ -1359,6 +1398,14 @@ def _generate_findings(
         if found:
             hit = " ".join(found.group(0).split())
             issues.append(f'Preview frame: "{hit}": start with the first item')
+
+        # A dramatic verb where a plain one says the same
+        for pattern, plain in INFLATED_VERB_RES:
+            found = pattern.search(phrase_form)
+            if found:
+                hit = " ".join(found.group(0).split())
+                issues.append(f'Inflated verb: "{hit}": use {plain}')
+                break
 
         # Tier-2 words are too common to flag alone; only when clustered
         # with another signal in the same sentence.

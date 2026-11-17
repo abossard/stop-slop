@@ -97,6 +97,23 @@ Write the short common word. `tools/analyze.py` flags each left-hand entry as `P
 | utilization | use |
 | utilize | use |
 
+## Inflated Verbs
+
+A dramatic verb where a plain one says the same. Paul Graham reported the pattern ("drew 100 votes" for "got 100 votes"), and a 2026 practitioner checklist ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), bonus sign) collects his examples. Wikipedia's Signs of AI writing lists "serves as" and "stands as" under [avoidance of basic copulatives](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Avoidance_of_basic_copulatives_%28%22is%22/%22are%22_phrases%29). No frequency study backs this list, so treat a hit as a prompt to check.
+
+| Instead of | Write |
+|------------|-------|
+| unveiled | showed, released, announced |
+| forged a partnership / an alliance | made a deal, signed an agreement |
+| delivered a keynote / a talk | gave a talk |
+| drew 100 votes | got 100 votes |
+| serves as a / stands as a | is a |
+| skyrocketed | rose, with the number |
+| unleashed | released, used |
+| supercharges | speeds up, with the number |
+
+`tools/analyze.py` flags these as `Inflated verb`. "Forge," "deliver" and "draw" have ordinary senses, so they count only in the frames above: "a forged SMS" and "delivers the messages" stay unflagged.
+
 ## Adverbs
 
 Cut empty intensifiers and the assertion adverbs listed under [Assertion Adverbs](#assertion-adverbs). Keep an adverb that carries a fact the sentence needs: when, how often, or how ("retry twice," "rotate slowly").

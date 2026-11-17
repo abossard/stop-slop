@@ -84,6 +84,7 @@ Before delivering prose:
 - Asking yourself a question in quotes before answering it? Delete the question.
 - "Three X, each closed/covered/measured"? Drop the count and the grade, keep the list.
 - Zombie nouns ("the configuration of")? Use the verb.
+- Dramatic verb ("unveiled," "forged a partnership," "serves as")? Use the plain one.
 - Trailing ", ensuring X"? Cut it or make it a sentence.
 - Subject and verb 10+ words apart? Move them together.
 

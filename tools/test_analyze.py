@@ -1356,6 +1356,38 @@ class TestBuzzwordClusters:
         )
 
 
+class TestInflatedVerbs:
+    """Dramatic verbs where a plain one says the same."""
+
+    @pytest.mark.parametrize("sentence,plain", [
+        ("The post drew 100 votes.", '"got"'),
+        ("She delivered a keynote at the summit.", '"gave"'),
+        ("The two firms forged a strategic partnership last spring.", '"made"'),
+        ("Apple unveiled the new laptop on Tuesday.", '"showed"'),
+        ("The README serves as the entry point.", '"is"'),
+        ("Signups skyrocketed after launch.", '"rose"'),
+        ("The new cache supercharges the build.", '"speeds up"'),
+    ])
+    def test_inflated_verbs_flagged(self, analyze_module, sentence, plain):
+        issues = [i for i in _issues_of(analyze_module.analyze_text(sentence))
+                  if i.startswith("Inflated verb")]
+        assert issues and plain in issues[0], f"not flagged: {sentence!r} -> {issues}"
+
+    @pytest.mark.parametrize("sentence", [
+        "The smith forged the blade by hand.",
+        "The courier delivered the package.",
+        "She drew a diagram of the flow.",
+        "He drew 3 cards from the deck.",
+        "The build serves static files.",
+        "The dog stands at the door.",
+    ])
+    def test_ordinary_senses_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(i.startswith("Inflated verb") for i in _issues_of(result)), (
+            f"false positive on: {sentence!r}"
+        )
+
+
 class TestDecisiveness:
     """C11 — "decisive" importance-inflation frames, without flagging the
     ordinary military, sports and character senses of the adjective."""
