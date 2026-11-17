@@ -1209,6 +1209,7 @@ class TestVagueClaims:
         "Industry reports suggest the market is growing.",
         "Some people say the tool is slow.",
         "Postgres is widely regarded as the safe default.",
+        "Observers note that the market shifted.",
     ])
     def test_unsourced_attribution_flagged(self, analyze_module, sentence):
         result = analyze_module.analyze_text(sentence)
@@ -1365,6 +1366,7 @@ class TestInflatedVerbs:
         ("The two firms forged a strategic partnership last spring.", '"made"'),
         ("Apple unveiled the new laptop on Tuesday.", '"showed"'),
         ("The README serves as the entry point.", '"is"'),
+        ("The proxy functions as a cache.", '"is"'),
         ("Signups skyrocketed after launch.", '"rose"'),
         ("The new cache supercharges the build.", '"speeds up"'),
     ])

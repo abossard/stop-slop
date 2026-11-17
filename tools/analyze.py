@@ -336,7 +336,7 @@ UNSOURCED_ATTRIBUTION_RES = [
         r"(?:show|shows|showed|have\s+shown|has\s+shown|suggest|suggests|"
         r"indicate|indicates|find|finds|found|have\s+found|confirm|confirms|"
         r"prove|proves|demonstrate|demonstrates|agree|agrees|argue|argues|say|"
-        r"says|believe|believes|claim|claims|warn|warns|point\s+to|points\s+to)\b"
+        r"says|believe|believes|claim|claims|warn|warns|note|notes|noted|point\s+to|points\s+to)\b"
     ),
     re.compile(
         r"\b(?:many|most|some)\s+(?:people|developers|engineers|users|teams|"
@@ -445,8 +445,9 @@ PARAGRAPH_HEDGE_RE = re.compile(
 # A dramatic verb where a plain one says the same: "unveiled" for "showed",
 # "drew 100 votes" for "got 100 votes". Paul Graham reported the pattern, and
 # explainx.ai (2026) collects his examples. No frequency study exists, so
-# these are prompts to check. "Serves as" and "stands as" for "is" come from
-# Wikipedia's Signs of AI writing (avoidance of basic copulatives). "Forge",
+# these are prompts to check. "Serves as", "stands as" and "functions as"
+# for "is" come from Wikipedia's Signs of AI writing (avoidance of basic
+# copulatives). "Forge",
 # "deliver" and "draw" have ordinary senses, so they match only in the frames
 # below. Words already in the AI vocabulary lists ("showcase", "garner",
 # "boast", "spearhead", "elevate") stay there. Matched on a _phrase_form.
@@ -475,7 +476,13 @@ INFLATED_VERB_RES = [
         ),
         '"got"',
     ),
-    (re.compile(r"\b(?:serves|served|serving|stands|stood)\s+as\s+(?:a|an|the)\b"), '"is"'),
+    (
+        re.compile(
+            r"\b(?:serves|served|serving|stands|stood|functions|functioned|"
+            r"functioning)\s+as\s+(?:a|an|the)\b"
+        ),
+        '"is"',
+    ),
     (re.compile(r"\bskyrocket(?:s|ed|ing)?\b"), '"rose" with the number'),
     (re.compile(r"\bunleash(?:es|ed|ing)?\b"), '"released" or "used"'),
     (re.compile(r"\bsupercharg(?:e|es|ed|ing)\b"), '"speeds up" with the number'),

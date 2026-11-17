@@ -99,7 +99,7 @@ Write the short common word. `tools/analyze.py` flags each left-hand entry as `P
 
 ## Inflated Verbs
 
-A dramatic verb where a plain one says the same. Paul Graham reported the pattern ("drew 100 votes" for "got 100 votes"), and a 2026 practitioner checklist ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), bonus sign) collects his examples. Wikipedia's Signs of AI writing lists "serves as" and "stands as" under [avoidance of basic copulatives](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Avoidance_of_basic_copulatives_%28%22is%22/%22are%22_phrases%29). No frequency study backs this list, so treat a hit as a prompt to check.
+A dramatic verb where a plain one says the same. Paul Graham reported the pattern ("drew 100 votes" for "got 100 votes"), and a 2026 practitioner checklist ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), bonus sign) collects his examples. Wikipedia's Signs of AI writing lists "serves as", "stands as" and "functions as" under [avoidance of basic copulatives](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Avoidance_of_basic_copulatives_%28%22is%22/%22are%22_phrases%29). No frequency study backs this list, so treat a hit as a prompt to check.
 
 | Instead of | Write |
 |------------|-------|
@@ -107,7 +107,7 @@ A dramatic verb where a plain one says the same. Paul Graham reported the patter
 | forged a partnership / an alliance | made a deal, signed an agreement |
 | delivered a keynote / a talk | gave a talk |
 | drew 100 votes | got 100 votes |
-| serves as a / stands as a | is a |
+| serves as a / stands as a / functions as a | is a |
 | skyrocketed | rose, with the number |
 | unleashed | released, used |
 | supercharges | speeds up, with the number |
@@ -198,7 +198,7 @@ A claim credited to "studies," "experts" or "research" sounds checked, but it gi
 | Pattern | Fix |
 |---------|-----|
 | "Studies show" / "Research indicates" / "Evidence suggests" | Name the study, or cut the claim |
-| "Many experts agree" / "Some people say" | Name who said it |
+| "Many experts agree" / "Observers note" / "Some people say" | Name who said it |
 | "It is widely believed" / "is widely regarded as" | Name who believes it, or state the fact |
 | "According to experts" | Name the expert |
 | "has significantly increased" / "grew rapidly" | Give the number and the period |
