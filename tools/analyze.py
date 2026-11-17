@@ -26,6 +26,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import math
 import re
@@ -94,6 +95,10 @@ AI_TIER2_WORDS = {
     "align", "emphasize", "enhance", "highlight", "key", "profound",
     "renowned", "exemplify", "seamless",
     "decisive", "decisively", "decisiveness",
+    # Practitioner-reported, with no published frequency ratio (explainx.ai
+    # 2026, signs 2 and 10). Each has a literal use ("unlock the mutex",
+    # "customer journey"), so they stay in tier 2.
+    "unlock", "elevate", "journey", "game-changer",
 }
 
 AI_TRANSITIONS = {
@@ -126,6 +131,11 @@ AI_PHRASES = [
 # High-signal words used for primary AI vocab density (backward-compatible)
 ALL_AI_WORDS = AI_TIER1_VERBS | AI_TIER1_ADJECTIVES | AI_TIER1_NOUNS | AI_TRANSITIONS
 
+# references/phrases.md: more than two words from the AI vocabulary lists in
+# one paragraph calls for a rewrite. Tier-2 words count toward the cluster.
+CLUSTER_WORDS = ALL_AI_WORDS | AI_TIER2_WORDS
+BUZZWORD_CLUSTER_SIZE = 3
+
 # One compiled alternation instead of one scan per phrase. Longest-first so an
 # overlapping pair resolves to the more specific phrase.
 AI_PHRASE_RE = re.compile(
@@ -140,6 +150,24 @@ AI_SENTENCE_STARTERS = [
     "this highlights", "this underscores", "this showcases",
     "notably,", "specifically,", "crucially,", "importantly,",
 ]
+
+# Filler phrases from the "Also cut these filler phrases" list in
+# references/phrases.md. "It's worth noting" and "In today's [X]" are on that
+# list too, but AI_PHRASES and AI_SENTENCE_STARTERS already flag them, so one
+# phrase yields one issue. "At its core" and "at the end of the day" also have
+# a literal sense ("the backup runs at the end of the day"), so only the
+# comma-set discourse use counts, as with "to be clear," further down.
+FILLER_PHRASE_RES = {
+    "at its core": re.compile(r"\bat its core\s*,", re.IGNORECASE),
+    "at the end of the day": re.compile(r"\bat the end of the day\s*,", re.IGNORECASE),
+    "when it comes to": re.compile(
+        r"\bwhen it comes to\b"
+        r"(?!\s+(?:(?:a|an)\s+(?:stop|halt|standstill|rest|end|close)|life)\b)",
+        re.IGNORECASE,
+    ),
+    "in a world where": re.compile(r"\bin a world where\b", re.IGNORECASE),
+    "the reality is": re.compile(r"\bthe reality is\b", re.IGNORECASE),
+}
 
 # --- Model-era signature markers ---
 # Rare but highly diagnostic tics. Measured at 19.5 hits per 100k words on
@@ -295,13 +323,218 @@ DECISIVENESS_RES = [
     ),
 ]
 
+# Claims credited to an unnamed authority. Wikipedia's Manual of Style lists
+# these as unsupported attributions ("research has shown", "many scholars
+# state", "it is widely thought"), and its Signs of AI writing page names the
+# same move in LLM text ("Experts argue", "Industry reports"). Matched on the
+# _phrase_form of a sentence, so "it's widely believed" counts.
+UNSOURCED_ATTRIBUTION_RES = [
+    re.compile(
+        r"\b(?:(?:many|most|some|several|numerous|multiple|recent|independent)\s+)?"
+        r"(?:studies|research|surveys|experts|scientists|researchers|scholars|"
+        r"analysts|observers|critics|evidence|industry\s+reports)\s+"
+        r"(?:show|shows|showed|have\s+shown|has\s+shown|suggest|suggests|"
+        r"indicate|indicates|find|finds|found|have\s+found|confirm|confirms|"
+        r"prove|proves|demonstrate|demonstrates|agree|agrees|argue|argues|say|"
+        r"says|believe|believes|claim|claims|warn|warns|note|notes|noted|point\s+to|points\s+to)\b"
+    ),
+    re.compile(
+        r"\b(?:many|most|some)\s+(?:people|developers|engineers|users|teams|"
+        r"companies|organizations)\s+(?:say|believe|think|feel|agree|claim)\b"
+    ),
+    re.compile(
+        r"\bit\s+is\s+(?:widely|generally|commonly|often|broadly|largely)\s+"
+        r"(?:believed|accepted|known|thought|agreed|said|recognized|recognised|"
+        r"acknowledged|reported|regarded|considered)\b"
+    ),
+    re.compile(
+        r"\b(?:is|are|was|were)\s+widely\s+(?:regarded|considered|seen|viewed|"
+        r"recognized|recognised)\s+as\b"
+    ),
+    re.compile(
+        r"\baccording\s+to\s+(?:(?:many|most|some|several|recent)\s+)?"
+        r"(?:experts|studies|research|researchers|scientists|analysts|sources)\b"
+    ),
+]
+
+# A determiner, number or possessive right before the match names whose
+# research it is: "our research shows", "the two studies found", "Google's
+# researchers found". Checked against the text before the match.
+OWNED_ATTRIBUTION_RE = re.compile(
+    r"(?:\b(?:the|our|this|these|those|their|his|her|its|my|your|both|two|"
+    r"three|four|five|\d+)|\w+'s)\s+(?:[\w-]+\s+)?$"
+)
+
+# A link, footnote, "et al.", a year in parentheses, a DOI or an arXiv id in
+# the same sentence is a source, so the attribution is no longer unsourced.
+# Checked on the sentence as written, because link targets are masked.
+CITATION_RE = re.compile(
+    r"\]\(|https?://|\[\^|\[\d+\]|\bet al\b|\((?:[^()]*\s)?(?:19|20)\d\d[a-z]?\)"
+    r"|\bdoi\b|doi\.org|\barxiv\b",
+    re.IGNORECASE,
+)
+
+# A trend told with an intensifier instead of a number ("has significantly
+# increased"), or a time frame with no dates ("in recent years"). Any digit
+# in the sentence exempts it.
+_TREND_ADVERB = (
+    r"(?:significantly|dramatically|substantially|considerably|drastically|"
+    r"sharply|rapidly|greatly|exponentially|massively)"
+)
+_TREND_VERB = (
+    r"(?:increase[sd]?|increasing|decrease[sd]?|decreasing|gr[eo]w(?:s|n|ing)?|"
+    r"r[io]se[ns]?|rising|decline[sd]?|declining|f[ae]ll(?:s|en|ing)?|"
+    r"improve[sd]?|improving|drop(?:s|ped|ping)?|surge[sd]?|surging|"
+    r"reduce[sd]?|reducing|accelerate[sd]?|accelerating|expand(?:s|ed|ing)?)"
+)
+UNQUANTIFIED_TREND_RES = [
+    re.compile(rf"\b{_TREND_ADVERB}\s+{_TREND_VERB}\b"),
+    re.compile(rf"\b{_TREND_VERB}\s+{_TREND_ADVERB}\b"),
+    re.compile(
+        r"\b(?:in\s+recent\s+(?:years|months|decades)|over\s+the\s+(?:past|last)\s+"
+        r"(?:few|several|couple\s+of)\s+(?:years|months|decades))\b"
+    ),
+]
+
+# Frames that restate instead of adding: a closing recap opener ("In
+# summary,") and an opening preview that promises factors without naming
+# them ("there are several key factors to consider"). "In conclusion," stays
+# with AI_SENTENCE_STARTERS so one phrase yields one issue. "Overall," and
+# "Ultimately," also mark an aggregate or a last step ("Overall, latency fell
+# 30%"), so they are left out. Both match a _phrase_form.
+RECAP_OPENER_RE = re.compile(
+    r"^(?:in\s+summary|to\s+summari[sz]e|to\s+sum\s+up|in\s+short|all\s+in\s+all|"
+    r"in\s+a\s+nutshell|in\s+essence|to\s+recap|summing\s+up)\s*[,:]"
+)
+PREVIEW_FRAME_RE = re.compile(
+    r"\bthere\s+are\s+(?:several|many|a\s+few|a\s+number\s+of|various|numerous|"
+    r"multiple|some)\s+(?:(?:key|important|crucial|main|major|critical)\s+)?"
+    r"(?:factors|things|considerations|aspects|points|elements|reasons|ways|"
+    r"issues|challenges)\s+(?:to\s+(?:consider|keep\s+in\s+mind|be\s+aware\s+of|"
+    r"bear\s+in\s+mind|think\s+about|note)|worth\s+(?:considering|noting|"
+    r"mentioning)|at\s+play|that\s+come\s+into\s+play)\b"
+)
+
+# Hedge words from "Hedge words to watch" in references/structures.md. Two in
+# one sentence are a hedge stack. A test keeps the two lists in sync. Matched
+# on a _phrase_form, so "it's likely that" counts.
+HEDGE_WORD_RE = re.compile(
+    r"\b(?:may|might|could|possibly|potentially|perhaps|arguably|typically|"
+    r"often|generally|tends?\s+to|in\s+some\s+cases|it\s+is\s+possible\s+that|"
+    r"it\s+is\s+likely\s+that|to\s+some\s+extent|more\s+or\s+less)\b"
+)
+
+# Paragraph hedges qualify a stretch of text instead of one claim. One is
+# fine. Two or more in a paragraph hedge its start, middle and end.
+# Wikipedia's Signs of AI writing names "important to note" as an LLM
+# disclaimer, and its Manual of Style lists "it should be noted" and "of
+# course" as editorializing. "That said" needs its comma, so a relative clause
+# ("anyone that said otherwise") stays out, and "change of course" and
+# "matter of course" are literal. Matched on a _phrase_form.
+PARAGRAPH_HEDGE_RE = re.compile(
+    r"\b(?:it\s+is\s+(?:important|crucial|essential)\s+to\s+(?:note|remember|"
+    r"keep\s+in\s+mind|mention|recognize|acknowledge)"
+    r"|it\s+is\s+worth\s+(?:noting|remembering|mentioning|pointing\s+out)"
+    r"|it\s+should\s+be\s+noted"
+    r"|that\s+said(?=\s*,)|having\s+said\s+that|that\s+being\s+said|with\s+that\s+said"
+    r"|(?<!change\s)(?<!matter\s)of\s+course"
+    r"|(?:is|isn't|is\s+not)\s+(?:the\s+)?(?:whole|full|complete|entire)\s+"
+    r"(?:picture|story))\b"
+)
+
+# A dramatic verb where a plain one says the same: "unveiled" for "showed",
+# "drew 100 votes" for "got 100 votes". Paul Graham reported the pattern, and
+# explainx.ai (2026) collects his examples. No frequency study exists, so
+# these are prompts to check. "Serves as", "stands as" and "functions as"
+# for "is" come from Wikipedia's Signs of AI writing (avoidance of basic
+# copulatives). "Forge",
+# "deliver" and "draw" have ordinary senses, so they match only in the frames
+# below. Words already in the AI vocabulary lists ("showcase", "garner",
+# "boast", "spearhead", "elevate") stay there. Matched on a _phrase_form.
+INFLATED_VERB_RES = [
+    (re.compile(r"\bunveil(?:s|ed|ing)?\b"), '"showed", "released" or "announced"'),
+    (
+        re.compile(
+            r"\bforg(?:e|es|ed|ing)\s+(?:(?:a|an|the|new|strong|strategic|close|"
+            r"lasting|deep)\s+)*(?:partnerships?|alliances?|deals?|relationships?|"
+            r"ties|bonds?|connections?|path)\b"
+        ),
+        '"made", "signed" or "built"',
+    ),
+    (
+        re.compile(
+            r"\bdeliver(?:s|ed|ing)?\s+(?:(?:a|an|the|his|her|their|our|its)\s+)?"
+            r"(?:[\w-]+\s+)?(?:keynotes?|talks?|speech(?:es)?|presentations?|lectures?)\b"
+        ),
+        '"gave"',
+    ),
+    (
+        re.compile(
+            r"\bdr(?:ew|aws?|awing|awn)\s+(?:(?:over|more\s+than|nearly|almost|about|"
+            r"around|roughly|some)\s+)?[\d,.]+k?\s+(?:votes|upvotes|visitors|views|"
+            r"attendees|sign-?ups|users|comments|responses|downloads|stars)\b"
+        ),
+        '"got"',
+    ),
+    (
+        re.compile(
+            r"\b(?:serves|served|serving|stands|stood|functions|functioned|"
+            r"functioning)\s+as\s+(?:a|an|the)\b"
+        ),
+        '"is"',
+    ),
+    (re.compile(r"\bskyrocket(?:s|ed|ing)?\b"), '"rose" with the number'),
+    (re.compile(r"\bunleash(?:es|ed|ing)?\b"), '"released" or "used"'),
+    (re.compile(r"\bsupercharg(?:e|es|ed|ing)\b"), '"speeds up" with the number'),
+]
+
+# Chat leftovers in a deliverable. Sign-offs offer more help or hope the text
+# helped. Wikipedia's Signs of AI writing lists them under collaborative
+# communication. Only the last paragraph counts, because "Let me know if you
+# need the logs" can be an ordinary request mid-email. Matched on a
+# _phrase_form.
+SIGN_OFF_RE = re.compile(
+    r"\b(?:i\s+hope\s+(?:this|that|it)\s+helps|hope\s+(?:this|that)\s+helps|"
+    r"let\s+me\s+know\s+if\s+you\s+(?:have|need|want|would\s+like|'d\s+like)|"
+    r"feel\s+free\s+to\s+(?:ask|reach\s+out|let\s+me\s+know)|"
+    r"would\s+you\s+like\s+me\s+to|do\s+you\s+want\s+me\s+to|"
+    r"if\s+you\s+have\s+any\s+(?:other\s+|further\s+|more\s+)?questions|"
+    r"is\s+there\s+anything\s+else|happy\s+to\s+help)\b"
+)
+
+# Knowledge-cutoff and source disclaimers. Wikipedia's Signs of AI writing
+# lists "based on available information" and "While specific details are
+# limited" among hedging disclaimers. Matched anywhere on a _phrase_form.
+CUTOFF_DISCLAIMER_RE = re.compile(
+    r"\b(?:as\s+of\s+my\s+(?:last\s+)?(?:knowledge\s+)?(?:update|cutoff|cut-off|training)|"
+    r"my\s+(?:knowledge\s+cutoff|knowledge\s+cut-off|training\s+data)|"
+    r"based\s+on\s+(?:the\s+)?(?:available|my)\s+(?:information|knowledge|data)|"
+    r"i\s+(?:do\s+not|don't|cannot|can't)\s+(?:have\s+)?(?:access\s+to\s+)?"
+    r"(?:real-time|current|up-to-date|live)\s+(?:information|data)|"
+    r"as\s+an\s+ai\s+(?:language\s+)?(?:model|assistant)|as\s+an\s+ai(?=\s*,)|"
+    r"while\s+specific\s+details\s+are\s+(?:limited|scarce))\b"
+)
+
 EM_DASH = "\u2014"
+# An en dash or a double hyphen with a space on each side stands in for an
+# em dash. An unspaced en dash marks a range ("2020\u20132024") and stays out.
+SPACED_DASH_RE = re.compile(r"\s(?:\u2013|--)\s")
+# Curly quotes and apostrophes. Weak alone, because editors curl them too
+# (blader/humanizer, pattern 21), so they are counted, not flagged.
+CURLY_QUOTES = "\u201c\u201d\u2018\u2019"
 
 # Minimum POS tokens before syntactic-template rates are stable enough to
 # report. Matches the conservative floors used for hapax/Yule's K/MTLD.
 TEMPLATE_MIN_TOKENS = 100
 LONG_SENTENCE_WORDS = 25
 SUBJECT_VERB_GAP = 10
+# English prose is about half function words ("the", "of", "and"), measured
+# with spaCy's English stop list: a median of 0.51 over 88 English markdown
+# files, 0.13 for the lowest, a table-heavy reference page. German prose
+# scores 0.03 to 0.04. Below the floor the text is reported as not English.
+# Short texts vary too much to tell.
+ENGLISH_STOPWORD_FLOOR = 0.10
+ENGLISH_CHECK_MIN_WORDS = 30
 NOMINALIZATION_SUFFIXES = (
     "tion", "sion", "ment", "ance", "ence", "ity", "ness",
 )
@@ -357,6 +590,12 @@ PLAIN_SWAPS = {
     "equivalent": "equal",  # PEC
 }
 PLAIN_SINGLE_WORDS = {word for word in PLAIN_SWAPS if " " not in word}
+# Swaps with a common sense the suggestion misreads: "implement an
+# interface" is not "do an interface", "however you configure it" is not
+# "but". Like tier-2 words, these are reported only next to another issue in
+# the same sentence. "Provide" stays flagged alone: the real before/after
+# pair 2 in the tests relies on it.
+PLAIN_SWAPS_IN_CLUSTERS = {"implement", "however", "currently"}
 PLAIN_PHRASE_RES = {
     phrase: re.compile(rf"\b{re.escape(phrase)}\b", re.IGNORECASE)
     for phrase in PLAIN_SWAPS if " " in phrase
@@ -393,16 +632,28 @@ LIST_ITEM_RE = re.compile(r"^\s*(?:[-+*]\s+|\d+[.)]\s+)")
 BLOCKQUOTE_RE = re.compile(r"^\s*>\s?")
 TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
 SENTENCE_BREAK_RE = re.compile(r"(?<=[.!?])\s+")
+BLANK_LINE_RE = re.compile(r"\n[ \t]*\n")
 ORDERED_MARKER_RE = re.compile(r"\s*(?:>\s*)*\d+[.)]")
 WORD_CHAR_RE = re.compile(r"\w")
 INLINE_CODE_RE = re.compile(r"(?<!`)(`+)(?!`)[^`\n]+?(?<!`)\1(?!`)")
 LINK_TARGET_RE = re.compile(r"(?<=\])\([^)\s]*(?:\s+\"[^\"]*\")?\)")
 BARE_URL_RE = re.compile(r"https?://[^\s<>]*[^\s<>.,;:!?)\]]")
+# Text in straight or curly double quotes on one line. A quoted word is
+# mentioned, not used: `("load-bearing", "not merely")` must not count as
+# writing "load-bearing". Single quotes stay, because ' and ’ are also
+# apostrophes. The length cap keeps an unmatched quote from blanking a line.
+# The reader still reads a quoted word, so length metrics keep it.
+QUOTED_RE = re.compile(r'"[^"\n]{1,200}"|“[^”\n]{1,200}”')
 
 
-def _mask_non_prose(text: str) -> str:
-    """Blank inline code, link targets and bare URLs, keeping every offset."""
-    for pattern in (INLINE_CODE_RE, LINK_TARGET_RE, BARE_URL_RE):
+def _mask_non_prose(text: str, quotes: bool = True) -> str:
+    """Blank inline code, link targets, bare URLs and quoted text, keeping every offset.
+
+    With quotes=False, quoted text stays, for metrics that measure what the
+    reader reads.
+    """
+    patterns = (INLINE_CODE_RE, LINK_TARGET_RE, BARE_URL_RE) + ((QUOTED_RE,) if quotes else ())
+    for pattern in patterns:
         text = pattern.sub(lambda match: " " * len(match.group(0)), text)
     return text
 
@@ -498,6 +749,63 @@ def _split_sentence_spans(text: str, masked: str) -> list[dict]:
     return spans
 
 
+def _paragraph_ids(text: str, sentence_spans: list[dict]) -> list[int]:
+    """Number each sentence's paragraph. Blank lines separate paragraphs."""
+    breaks = [match.start() for match in BLANK_LINE_RE.finditer(text)]
+    return [bisect.bisect_right(breaks, span["start"]) for span in sentence_spans]
+
+
+def _paragraph_hedge_issues(phrase_forms: list[str], paragraph_ids: list[int]) -> dict[int, str]:
+    """Report each paragraph with two or more paragraph hedges once.
+
+    The issue goes to the sentence holding the second hedge and lists every
+    hedge in the paragraph.
+    """
+    by_paragraph: dict[int, list[tuple[int, str]]] = {}
+    for idx, form in enumerate(phrase_forms):
+        for hit in PARAGRAPH_HEDGE_RE.findall(form):
+            by_paragraph.setdefault(paragraph_ids[idx], []).append((idx, " ".join(hit.split())))
+    issues = {}
+    for hits in by_paragraph.values():
+        if len(hits) >= 2:
+            names = ", ".join(f'"{hit}"' for _, hit in hits)
+            issues[hits[1][0]] = f"Paragraph hedge stack: {names}: keep one at most"
+    return issues
+
+
+def _lexicon_entry(word: str, spacy_lemmas: dict, lexicon: set[str]) -> str | None:
+    """The lexicon entry a word matches, by the same rules as _lexicon_hit."""
+    for candidate in (word, spacy_lemmas.get(word), _lemmatize_fallback(word, lexicon)):
+        if candidate in lexicon:
+            return candidate
+    return None
+
+
+def _buzzword_cluster_issues(
+    sentence_words: list[list[str]], spacy_lemmas: dict, paragraph_ids: list[int],
+) -> dict[int, str]:
+    """Report each paragraph with BUZZWORD_CLUSTER_SIZE different AI-list words once.
+
+    The issue goes to the sentence holding the word that completes the
+    cluster. Distinct entries count, so "the key ... each key" is one word.
+    """
+    found: dict[int, list[str]] = {}
+    issues = {}
+    for idx, words in enumerate(sentence_words):
+        entries = found.setdefault(paragraph_ids[idx], [])
+        already_reported = len(entries) >= BUZZWORD_CLUSTER_SIZE
+        for word in words:
+            entry = _lexicon_entry(word, spacy_lemmas, CLUSTER_WORDS)
+            if entry and entry not in entries:
+                entries.append(entry)
+        if not already_reported and len(entries) >= BUZZWORD_CLUSTER_SIZE:
+            issues[idx] = (
+                f"Buzzword cluster: {', '.join(entries)}: "
+                f"rewrite the paragraph in plain words"
+            )
+    return issues
+
+
 def _word_tokenize(text: str) -> list[str]:
     """Simple whitespace + punctuation tokenizer."""
     return re.findall(r"[a-z]+(?:[-'][a-z]+)*", text.lower())
@@ -582,12 +890,13 @@ def _plain_base(word: str, lemma: str) -> str | None:
     return base if base in PLAIN_SINGLE_WORDS else None
 
 
-def _plain_swap_hits(sent: str, tokens: list) -> list[tuple[str, str]]:
+def _plain_swap_hits(sent: str, tokens: list) -> list[tuple[str, str, str]]:
+    """(text as written, plain swap, PLAIN_SWAPS key) for each hit."""
     hits = []
     occupied = []
     for phrase, pattern in PLAIN_PHRASE_RES.items():
         for match in pattern.finditer(sent):
-            hits.append((match.group(0), PLAIN_SWAPS[phrase]))
+            hits.append((match.group(0), PLAIN_SWAPS[phrase], phrase))
             occupied.append(match.span())
 
     token_items = [
@@ -603,7 +912,7 @@ def _plain_swap_hits(sent: str, tokens: list) -> list[tuple[str, str]]:
             continue
         base = _plain_base(lower, lemma)
         if base:
-            hits.append((surface, PLAIN_SWAPS[base]))
+            hits.append((surface, PLAIN_SWAPS[base], base))
     return hits
 
 
@@ -655,6 +964,49 @@ def _subject_verb_gaps(tokens: list) -> list[tuple[str, str, int]]:
         if gap >= SUBJECT_VERB_GAP:
             gaps.append((tok.text, head.text, gap))
     return gaps
+
+
+def _language_check(words: list[str]) -> tuple[float, str | None]:
+    """Share of English stop words, and a warning when the text is not English.
+
+    Every word list and detector here is English, so other languages would
+    otherwise come back with no findings and look clean.
+    """
+    from spacy.lang.en.stop_words import STOP_WORDS
+
+    if not words:
+        return 0.0, None
+    share = round(sum(1 for w in words if w in STOP_WORDS) / len(words), 3)
+    if len(words) >= ENGLISH_CHECK_MIN_WORDS and share < ENGLISH_STOPWORD_FLOOR:
+        return share, (
+            f"The text does not look like English ({share:.0%} English function "
+            f"words). The analyzer checks English only, so no findings here does "
+            f"not mean the text is clean."
+        )
+    return share, None
+
+
+def _coordination_lengths(tokens: list) -> list[int]:
+    """Item counts of the coordinations in one sentence, two items or more.
+
+    A coordination is a head token plus its chain of `conj` children, the way
+    spaCy parses "fast, reliable, and secure". A head with a subordinator ("If
+    it fails, retry and log") joins clauses, not list items, so it is skipped.
+    """
+    in_sentence = {tok.i for tok in tokens}
+    lengths = []
+    for tok in tokens:
+        if tok.dep_ == "conj" or any(child.dep_ == "mark" for child in tok.children):
+            continue
+        count, frontier = 1, [tok]
+        while frontier:
+            for child in frontier.pop().children:
+                if child.dep_ == "conj" and child.i in in_sentence:
+                    count += 1
+                    frontier.append(child)
+        if count >= 2:
+            lengths.append(count)
+    return lengths
 
 
 def _trailing_ing_clause(tokens: list) -> str | None:
@@ -958,6 +1310,43 @@ def _match_labels(sent: str, patterns: list) -> list[str]:
     return hits
 
 
+def _phrase_form(sent_lower: str) -> str:
+    """Spell "it's" as "it is" with a straight apostrophe.
+
+    AI_PHRASES and AI_SENTENCE_STARTERS are written uncontracted with straight
+    apostrophes, so "It's worth noting" and "In today’s" would otherwise slip.
+    """
+    return re.sub(r"\bit's\b", "it is", sent_lower.replace("’", "'"))
+
+
+def _vague_claim_issues(phrase_form: str, written: str) -> list[str]:
+    """Flag claims with no named source and trends with no number.
+
+    phrase_form is the sentence from _phrase_form. written is the sentence as
+    written, which still holds the link targets and digits the exemptions need.
+    """
+    issues = []
+    if not CITATION_RE.search(written):
+        for pattern in UNSOURCED_ATTRIBUTION_RES:
+            found = pattern.search(phrase_form)
+            if found and not OWNED_ATTRIBUTION_RE.search(phrase_form[:found.start()]):
+                hit = " ".join(found.group(0).split())
+                issues.append(
+                    f'Unsourced attribution: "{hit}": name the source or cut the claim'
+                )
+                break
+    if not re.search(r"\d", written):
+        for pattern in UNQUANTIFIED_TREND_RES:
+            found = pattern.search(phrase_form)
+            if found:
+                hit = " ".join(found.group(0).split())
+                issues.append(
+                    f'Unquantified trend: "{hit}": give the number and the period'
+                )
+                break
+    return issues
+
+
 def _compute_passive_voice_rate(sentences: list[str], passive_data: list[bool]) -> float:
     """Fraction of sentences with passive voice."""
     if not sentences:
@@ -975,20 +1364,38 @@ def _compute_readability(text: str) -> float:
 def _generate_findings(
     sentences: list[str], shown: list[str], spacy_lemmas: dict,
     passive_data: list[bool], sentence_tokens: list[list],
+    paragraph_ids: list[int] | None = None,
+    sentence_lengths: list[int] | None = None,
 ) -> list[dict]:
-    """Per-sentence findings with sentence indices and issues."""
+    """Per-sentence findings with sentence indices and issues.
+
+    paragraph_ids numbers each sentence's paragraph. Without it, the whole
+    text counts as one paragraph. sentence_lengths gives each sentence's
+    word count with quoted text kept. Without it, lengths come from sentences.
+    """
     findings = []
+    if paragraph_ids is None:
+        paragraph_ids = [0] * len(sentences)
+    phrase_forms = [_phrase_form(sent.lower()) for sent in sentences]
+    paragraph_hedges = _paragraph_hedge_issues(phrase_forms, paragraph_ids)
+    buzzword_clusters = _buzzword_cluster_issues(
+        [_word_tokenize(sent) for sent in sentences], spacy_lemmas, paragraph_ids
+    )
+    last_paragraph = paragraph_ids[-1] if paragraph_ids else 0
 
     for idx, sent in enumerate(sentences):
         issues = []
         sent_words = _word_tokenize(sent)
         tokens = sentence_tokens[idx]
 
-        if len(sent_words) > LONG_SENTENCE_WORDS:
-            issues.append(f"Long sentence ({len(sent_words)} words)")
+        length = sentence_lengths[idx] if sentence_lengths else len(sent_words)
+        if length > LONG_SENTENCE_WORDS:
+            issues.append(f"Long sentence ({length} words)")
 
-        for found, plain in _plain_swap_hits(sent, tokens):
-            issues.append(f'Plain word: "{found}" -> "{plain}"')
+        deferred_plain = []
+        for found, plain, key in _plain_swap_hits(sent, tokens):
+            issue = f'Plain word: "{found}" -> "{plain}"'
+            (deferred_plain if key in PLAIN_SWAPS_IN_CLUSTERS else issues).append(issue)
 
         nominalizations = [tok.text.lower() for tok in tokens if _is_nominalization(tok)]
         verb_count = sum(1 for tok in tokens if tok.pos_ in ("VERB", "AUX"))
@@ -1005,10 +1412,15 @@ def _generate_findings(
 
         # Check AI phrases
         sent_lower = sent.lower()
-        matched_phrases = set(AI_PHRASE_RE.findall(sent_lower))
+        phrase_form = phrase_forms[idx]
+        matched_phrases = set(AI_PHRASE_RE.findall(phrase_form))
         for phrase in AI_PHRASES:
             if phrase in matched_phrases:
                 issues.append(f"AI-typical phrase: \"{phrase}\"")
+
+        for phrase, pattern in FILLER_PHRASE_RES.items():
+            if pattern.search(sent):
+                issues.append(f'Filler phrase: "{phrase}": cut it and state the point')
 
         # Check passive voice
         if passive_data[idx] and not any(tok.dep_ == "agent" for tok in tokens):
@@ -1024,21 +1436,21 @@ def _generate_findings(
             )
 
         # Check hedge stacking (≥2 hedges in one sentence)
-        hedge_words = re.findall(
-            r'\b(?:may|might|could|possibly|potentially|perhaps|arguably|'
-            r'typically|often|generally|tends?\s+to|in\s+some\s+cases)\b',
-            sent_lower
-        )
+        hedge_words = [" ".join(hit.split()) for hit in HEDGE_WORD_RE.findall(phrase_form)]
         if len(hedge_words) >= 2:
             issues.append(
                 f"Hedge stacking: {len(hedge_words)} hedges "
                 f"({', '.join(hedge_words)})"
             )
 
+        if idx in paragraph_hedges:
+            issues.append(paragraph_hedges[idx])
+
         # Check AI-typical sentence starters (Przystalski et al. 2025)
         sent_stripped = sent_lower.lstrip()
+        phrase_start = phrase_form.lstrip()
         for starter in AI_SENTENCE_STARTERS:
-            if sent_stripped.startswith(starter):
+            if phrase_start.startswith(starter):
                 issues.append(
                     f"AI-typical starter: \"{starter.rstrip(',')}\""
                 )
@@ -1055,7 +1467,7 @@ def _generate_findings(
         # Negation-then-correction frames
         claimed_by_parallelism = False
         for hit in _match_labels(sent, NEGATIVE_PARALLELISM_RES):
-            issues.append(f"Negative parallelism: \"{hit}\" — state the positive claim")
+            issues.append(f"Negative parallelism: \"{hit}\": state the positive claim")
             claimed_by_parallelism = True
             break
 
@@ -1073,20 +1485,56 @@ def _generate_findings(
         # hit the sentence-start anchors.
         sent_anchor = MARKDOWN_PREFIX_RE.sub("", sent_stripped)
         for hit in _match_labels(sent_anchor, SYCOPHANCY_RES):
-            issues.append(f"Sycophantic opener: \"{hit}\" — cut it and answer")
+            issues.append(f"Sycophantic opener: \"{hit}\": cut it and answer")
             break
 
         # Metadiscourse preamble (Hyland frame markers)
         for hit in _match_labels(sent, THROAT_CLEARING_RES):
-            issues.append(f"Throat-clearing: \"{hit}\" — state the point directly")
+            issues.append(f"Throat-clearing: \"{hit}\": state the point directly")
             break
 
         # Importance inflation via "decisive" (Wikipedia:Signs_of_AI_writing)
         for hit in _match_labels(sent, DECISIVENESS_RES):
             issues.append(
-                f"Importance inflation: \"{hit}\" — name what actually changed"
+                f"Importance inflation: \"{hit}\": name what actually changed"
             )
             break
+
+        # Claims with no named source, trends with no number
+        issues.extend(_vague_claim_issues(phrase_form, shown[idx]))
+
+        # Recap openers and preview frames restate instead of adding
+        found = RECAP_OPENER_RE.match(MARKDOWN_PREFIX_RE.sub("", phrase_start))
+        if found:
+            hit = found.group(0).rstrip(",:").strip()
+            issues.append(f'Recap opener: "{hit}": end on the last new fact instead')
+        found = PREVIEW_FRAME_RE.search(phrase_form)
+        if found:
+            hit = " ".join(found.group(0).split())
+            issues.append(f'Preview frame: "{hit}": start with the first item')
+
+        # A dramatic verb where a plain one says the same
+        for pattern, plain in INFLATED_VERB_RES:
+            found = pattern.search(phrase_form)
+            if found:
+                hit = " ".join(found.group(0).split())
+                issues.append(f'Inflated verb: "{hit}": use {plain}')
+                break
+
+        # Chat leftovers: sign-offs in the last paragraph, cutoff disclaimers anywhere
+        if paragraph_ids[idx] == last_paragraph:
+            found = SIGN_OFF_RE.search(phrase_form)
+            if found:
+                hit = " ".join(found.group(0).split())
+                issues.append(f'Chatbot sign-off: "{hit}": cut it')
+        found = CUTOFF_DISCLAIMER_RE.search(phrase_form)
+        if found:
+            hit = " ".join(found.group(0).split())
+            issues.append(f'Cutoff disclaimer: "{hit}": check the source or cut it')
+
+        # Plain swaps with a common technical sense, only next to another issue
+        if issues:
+            issues.extend(deferred_plain)
 
         # Tier-2 words are too common to flag alone; only when clustered
         # with another signal in the same sentence.
@@ -1100,6 +1548,11 @@ def _generate_findings(
                     f"Tier-2 AI words clustered with other signals: "
                     f"{', '.join(sorted(set(tier2_found)))}"
                 )
+
+        # Three different AI-list words in one paragraph. Checked after the
+        # tier-2 note, so a cluster alone does not add that note too.
+        if idx in buzzword_clusters:
+            issues.append(buzzword_clusters[idx])
 
         if issues:
             findings.append({
@@ -1131,6 +1584,8 @@ def analyze_text(text: str) -> dict:
             "tier2_density": 0,
             "kobak_common10_density": 0,
             "em_dash_count": 0,
+            "spaced_dash_count": 0,
+            "curly_quote_count": 0,
             "syntactic_templates": None,
             "syntactic_templates_unavailable_reason": None,
             "mtld": None,
@@ -1143,17 +1598,26 @@ def analyze_text(text: str) -> dict:
             "difficult_word_rate": 0,
             "visual_findings": [],
             "bold_density": 0,
+            "coordination_lengths": {"pairs": 0, "triads": 0, "longer": 0},
+            "english_stopword_share": 0,
+            "language_warning": None,
             "findings": [],
         }
 
-    # Inline code, link targets and URLs become spaces, so offsets still line up.
+    # Inline code, link targets, URLs and quoted text become spaces, so offsets still line up.
     masked = _mask_non_prose(text)
     sentence_spans = _split_sentence_spans(text, masked)
     sentences = [masked[span["start"]:span["end"]].strip() for span in sentence_spans]
     shown = [text[span["start"]:span["end"]] for span in sentence_spans]
     prose_text = "\n".join(sentences)
     words = _word_tokenize(prose_text)
-    sentence_lengths = [len(_word_tokenize(s)) for s in sentences]
+    # A quoted word is a mention for the detectors, but the reader still reads
+    # it, so word count, sentence length and readability keep quoted text.
+    as_read = _mask_non_prose(text, quotes=False)
+    read_sentences = [as_read[span["start"]:span["end"]].strip() for span in sentence_spans]
+    read_text = "\n".join(read_sentences)
+    read_word_count = len(_word_tokenize(read_text))
+    sentence_lengths = [len(_word_tokenize(s)) for s in read_sentences]
 
     spacy_data = _spacy_analyze(masked)
     spacy_lemmas = spacy_data["lemmas"]
@@ -1170,18 +1634,23 @@ def analyze_text(text: str) -> dict:
         for tok in tokens
         if not tok.is_punct
     ]
-    findings = _generate_findings(sentences, shown, spacy_lemmas, passive_data, sentence_tokens)
-    textstat_metrics = _compute_textstat_metrics(prose_text, sentence_tokens)
-    visual_findings, bold_density = _detect_visuals(raw_text, len(words))
+    findings = _generate_findings(
+        sentences, shown, spacy_lemmas, passive_data, sentence_tokens,
+        _paragraph_ids(text, sentence_spans), sentence_lengths,
+    )
+    textstat_metrics = _compute_textstat_metrics(read_text, sentence_tokens)
+    visual_findings, bold_density = _detect_visuals(raw_text, read_word_count)
+    coordinations = [n for tokens in sentence_tokens for n in _coordination_lengths(tokens)]
+    english_share, language_warning = _language_check(words)
 
     result = {
-        "word_count": len(words),
+        "word_count": read_word_count,
         "sentence_count": len(sentences),
         "burstiness": _compute_burstiness(sentence_lengths),
         "ttr": _compute_ttr(words),
         "ai_vocabulary_density": _compute_ai_vocab_density(words, spacy_lemmas),
         "passive_voice_rate": _compute_passive_voice_rate(sentences, passive_data),
-        "flesch_kincaid_grade": _compute_readability(prose_text),
+        "flesch_kincaid_grade": _compute_readability(read_text),
         "hapax_ratio": _compute_hapax_ratio(words),
         "yules_k": _compute_yules_k(words),
         "contraction_rate": _compute_contraction_rate(prose_text, sentences),
@@ -1191,6 +1660,9 @@ def analyze_text(text: str) -> dict:
             words, KOBAK_COMMON_10, spacy_lemmas
         ),
         "em_dash_count": prose_text.count(EM_DASH),
+        "spaced_dash_count": len(SPACED_DASH_RE.findall(prose_text)),
+        # Counted on the sentences as written, because quoted spans are masked
+        "curly_quote_count": sum(sum(s.count(q) for q in CURLY_QUOTES) for s in shown),
         "syntactic_templates": _compute_syntactic_templates(pos_tags),
         "syntactic_templates_unavailable_reason": None,
         "sentence_length_mean": round(statistics.mean(sentence_lengths), 2) if sentence_lengths else 0,
@@ -1208,6 +1680,13 @@ def analyze_text(text: str) -> dict:
         "mean_dependency_distance": _mean_dependency_distance(sentence_tokens),
         "visual_findings": visual_findings,
         "bold_density": bold_density,
+        "coordination_lengths": {
+            "pairs": coordinations.count(2),
+            "triads": coordinations.count(3),
+            "longer": sum(1 for n in coordinations if n > 3),
+        },
+        "english_stopword_share": english_share,
+        "language_warning": language_warning,
         "findings": findings,
     }
     result.update(textstat_metrics)
@@ -1229,6 +1708,10 @@ def _format_human(result: dict) -> str:
     """Format results for human reading."""
     lines = []
     lines.append("═══ AI Slop Analysis ═══\n")
+
+    if result.get("language_warning"):
+        lines.append(f"⚠ {result['language_warning']}")
+        lines.append("")
 
     lines.append(f"Words: {result['word_count']}  |  Sentences: {result['sentence_count']}")
     lines.append("")
@@ -1288,6 +1771,12 @@ def _format_human(result: dict) -> str:
     em = result.get("em_dash_count", 0)
     em_note = " (house style: remove)" if em else ""
     lines.append(f"Em dashes:           {em}{em_note}")
+    spaced = result.get("spaced_dash_count", 0)
+    spaced_note = " (house style: remove)" if spaced else ""
+    lines.append(f"Spaced dashes:       {spaced}{spaced_note}")
+    curly = result.get("curly_quote_count", 0)
+    if curly:
+        lines.append(f"Curly quotes:        {curly} (weak alone: editors curl quotes too)")
 
     templates = result.get("syntactic_templates")
     if templates is not None:
@@ -1296,6 +1785,14 @@ def _format_human(result: dict) -> str:
             f"Template rate:       {tr:.3f} "
             f"({templates['pos_token_count']} POS tokens; rises with length, "
             f"compare like-sized texts only)"
+        )
+
+    coordinations = result.get("coordination_lengths") or {}
+    if any(coordinations.values()):
+        lines.append(
+            f"Coordinations:       {coordinations['pairs']} pairs, "
+            f"{coordinations['triads']} triads, {coordinations['longer']} longer "
+            f"(no threshold, compare like-sized texts only)"
         )
 
     markers = result.get("signature_markers") or {}

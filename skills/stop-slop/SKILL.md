@@ -16,11 +16,11 @@ Eliminate predictable AI writing patterns from prose.
 
 3. **Name the actor.** Whoever acts is the subject. Use passive only when the thing acted on is the topic.
 
-4. **Be specific.** No vague declaratives ("The reasons are structural"). Name the specific thing. No lazy extremes ("every," "always," "never") doing vague work.
+4. **Be specific.** No vague declaratives ("The reasons are structural"). Name the specific thing. No lazy extremes ("every," "always," "never") doing vague work. Credit claims to a named source and give trends a number.
 
 5. **Name what happens.** When "People" hides who acts, name the actor and action. Use "you" when the reader acts.
 
-6. **Short sentences, varied rhythm.** Average 15 to 20 words. Uniform lengths are an AI tell. End paragraphs differently. No em dashes.
+6. **Short sentences, varied rhythm.** Average 15 to 20 words. Uniform lengths are an AI tell, for paragraphs too. End paragraphs differently. No em dashes, and no spaced en dashes or ` -- ` standing in for them.
 
 7. **State the fact.** If a clause only reassures or justifies including a claim, cut it. Keep explanations of cause or behavior.
 
@@ -42,13 +42,15 @@ Eliminate predictable AI writing patterns from prose.
 
 ## Quantitative check
 
-Before delivering prose longer than ~100 words, run the slopometer:
+Run the slopometer on documents and on any text the user asks you to review. Skip it for chat replies, commit messages and code comments. Each run costs a tool call, and the first one sets up about 450 MB of dependencies through uv.
 
 - Command: `../../tools/slopometer --json` (reads stdin). The path is relative to this file, like the reference links. The shell starts in the user's project, so resolve it first.
-- Parse with `jq` — never `grep`/`sed` over JSON
+- Parse with `jq`, never with `grep` or `sed`
 - Exit 3: show the user the banner and stop; estimate no metrics.
+- The analyzer skips inline code, URLs and text in double quotes, so a quoted word counts as a mention.
+- `language_warning` set: the text is not English, and the word lists and detectors are. Tell the user, apply the structural rules by hand, and treat an empty `findings` as unchecked.
 
-Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate, findings[], visual_findings[]) to prioritize edits, then re-run after revision.
+Use the JSON metrics (burstiness, ttr, ai_vocabulary_density, passive_voice_rate, coordination_lengths, findings[], visual_findings[]) to prioritize edits, then re-run after revision.
 
 ## Quick Checks
 
@@ -60,11 +62,15 @@ Before delivering prose:
 - Any "here's what/this/that" throat-clearing? Cut to the point.
 - Corrected subject or "not X, it's Y"? Review with [Binary Contrasts](../../references/structures.md#binary-contrasts).
 - Three consecutive sentences match length? Break one.
+- Two hedges in one paragraph ("That said," "Of course," "It's important to remember")? Keep one at most.
 - Paragraph ends with punchy one-liner? Vary it.
-- Em-dash anywhere? Remove it.
+- Same metaphor or connecting word in three paragraphs? Use it once. See [Pet Words](../../references/structures.md#pet-words).
+- Em dash, spaced en dash or ` -- ` anywhere? Remove it.
 - Vague declarative ("The implications are significant")? Name the specific implication.
+- "Studies show," "experts agree," "in recent years"? Name the source and the number, or cut the claim.
 - Distant summary ("Nobody designed this")? Name who did what; keep factual causes.
 - Meta-joiners ("The rest of this essay...")? Delete. Let the essay move.
+- Opening restates the question, or the last paragraph starts "In summary"? Start with the answer and end on the last new fact. See [Recap Frames](../../references/structures.md#recap-frames).
 - Sentence ends in ", not merely X" or ", not just Y"? Review with [Negation-as-Proof](../../references/structures.md#negation-as-proof).
 - "Load-bearing," "decisive," "the crux," "not optional"? Name the consequence; preserve actual requirements.
 - "Deliberately," "intentionally," "by design"? Every choice was. State the mechanism.
@@ -75,11 +81,15 @@ Before delivering prose:
 - Two or more parentheticals in one sentence? Move the evidence to the end.
 - Sentence past 25 words? Find the second verb and start over there.
 - Rating your own work ("clean," "surgical," "robust," "elegant")? Give the number instead.
+- Three AI-list words in one paragraph ("leverage," "robust," "unlock")? Rewrite it in plain words.
 - Reply opens with "You're right" or "Good catch"? The correction shows it.
+- Ends with "I hope this helps" or "Would you like me to"? Cut it. "As of my last update"? Check the source instead.
 - Instruction history in the deliverable? Describe behavior; see [Compliance Narration](../../references/structures.md#compliance-narration).
 - Asking yourself a question in quotes before answering it? Delete the question.
 - "Three X, each closed/covered/measured"? Drop the count and the grade, keep the list.
+- Most lists have exactly three items? Keep the real items, whatever their count.
 - Zombie nouns ("the configuration of")? Use the verb.
+- Dramatic verb ("unveiled," "forged a partnership," "serves as")? Use the plain one.
 - Trailing ", ensuring X"? Cut it or make it a sentence.
 - Subject and verb 10+ words apart? Move them together.
 
@@ -98,12 +108,12 @@ For each offender, tag it with one emoji and a one-line roast. Roast the sentenc
 
 | Emoji | Offense |
 |-------|---------|
-| 🤖 | Robotic phrasing — sounds like a chatbot wrote it |
-| 💀 | Dead cliché — "It's important to note," "In today's world" |
-| 🎭 | Fake drama — manufactured urgency or gravity |
-| 🪞 | Self-referential — the text talks about itself |
-| 🫠 | Cringe filler — adds nothing, sounds desperate to fill space |
-| 🦜 | Parrot — repeats the same idea in slightly different words |
+| 🤖 | Robotic phrasing: sounds like a chatbot wrote it |
+| 💀 | Dead cliché: "It's important to note," "In today's world" |
+| 🎭 | Fake drama: manufactured urgency or gravity |
+| 🪞 | Self-referential: the text talks about itself |
+| 🫠 | Cringe filler: adds nothing, sounds desperate to fill space |
+| 🦜 | Parrot: repeats the same idea in slightly different words |
 | 🖼️ | Decorative visual: a diagram or table that repeats the explanation without clarifying structure, or an emoji used as ornament |
 
 **Format:**

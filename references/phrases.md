@@ -54,6 +54,8 @@ Replace with plain language.
 
 Write the short common word. `tools/analyze.py` flags each left-hand entry as `Plain word`, in any case, with inflections of single words. Each entry comes from the [plainlanguage.gov Simple Words and Phrases](https://web.archive.org/web/20161223073724/http://www.plainlanguage.gov/howto/wordsuggestions/simplewords.cfm) list or the [Plain English Campaign A to Z of alternative words](https://web.archive.org/web/20200109034429/http://www.plainenglish.co.uk/files/alternative.pdf).
 
+"Implement," "however" and "currently" have common senses the swap misreads: "implement an interface" is not "do an interface", and "however you configure it" is not "but". The analyzer reports these three only next to another issue in the same sentence, the way it treats tier-2 words.
+
 | Instead of | Write |
 |------------|-------|
 | additional | more |
@@ -97,6 +99,23 @@ Write the short common word. `tools/analyze.py` flags each left-hand entry as `P
 | utilization | use |
 | utilize | use |
 
+## Inflated Verbs
+
+A dramatic verb where a plain one says the same. Paul Graham reported the pattern ("drew 100 votes" for "got 100 votes"), and a 2026 practitioner checklist ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), bonus sign) collects his examples. Wikipedia's Signs of AI writing lists "serves as", "stands as" and "functions as" under [avoidance of basic copulatives](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Avoidance_of_basic_copulatives_%28%22is%22/%22are%22_phrases%29). No frequency study backs this list, so treat a hit as a prompt to check.
+
+| Instead of | Write |
+|------------|-------|
+| unveiled | showed, released, announced |
+| forged a partnership / an alliance | made a deal, signed an agreement |
+| delivered a keynote / a talk | gave a talk |
+| drew 100 votes | got 100 votes |
+| serves as a / stands as a / functions as a | is a |
+| skyrocketed | rose, with the number |
+| unleashed | released, used |
+| supercharges | speeds up, with the number |
+
+`tools/analyze.py` flags these as `Inflated verb`. "Forge," "deliver" and "draw" have ordinary senses, so they count only in the frames above: "a forged SMS" and "delivers the messages" stay unflagged.
+
 ## Adverbs
 
 Cut empty intensifiers and the assertion adverbs listed under [Assertion Adverbs](#assertion-adverbs). Keep an adverb that carries a fact the sentence needs: when, how often, or how ("retry twice," "rotate slowly").
@@ -126,6 +145,8 @@ Also cut these filler phrases:
 - "When it comes to"
 - "In a world where"
 - "The reality is"
+
+`tools/analyze.py` flags each phrase, written with "it's" or "it is" and with straight or curly apostrophes. "At its core" and "At the end of the day" count only before a comma, where they open a claim, so "the backup runs at the end of the day" stays unflagged. "When it comes to a stop" is skipped for the same reason.
 
 ## Meta-Commentary
 
@@ -171,6 +192,33 @@ Sentences that announce importance without naming the specific thing. Kill these
 - "The consequences are real"
 
 If a sentence says something is important/deep/structural without showing the specific thing, cut it or replace it with the specific thing.
+
+## Unsourced Claims
+
+A claim credited to "studies," "experts" or "research" sounds checked, but it gives the reader nothing to check. Wikipedia's Manual of Style calls these [unsupported attributions](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Unsupported_attributions), and its [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Vague_attributions_and_overgeneralization_of_opinions) page lists them as an LLM habit. A trend told with an intensifier instead of a number has the same problem.
+
+| Pattern | Fix |
+|---------|-----|
+| "Studies show" / "Research indicates" / "Evidence suggests" | Name the study, or cut the claim |
+| "Many experts agree" / "Observers note" / "Some people say" | Name who said it |
+| "It is widely believed" / "is widely regarded as" | Name who believes it, or state the fact |
+| "According to experts" | Name the expert |
+| "has significantly increased" / "grew rapidly" | Give the number and the period |
+| "In recent years" / "Over the past few years" | Name the years |
+
+`tools/analyze.py` flags these as `Unsourced attribution` and `Unquantified trend`. A determiner or possessive before the noun names a source ("our research shows", "Google's researchers found"). So does a citation in the same sentence: a link, a footnote, "et al." or a year in parentheses. Any digit in the sentence counts as a number.
+
+## Chat Leftovers
+
+Phrases from a chat window that end up in a document. Wikipedia's Signs of AI writing lists sign-offs under [collaborative communication](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Collaborative_communication) and source disclaimers under [hedging disclaimers](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Hedging_disclaimers_about_source_availability_and_recommended_usage).
+
+| Pattern | Fix |
+|---------|-----|
+| "I hope this helps" / "Let me know if you have any questions" / "Would you like me to..." | Cut it. The reader asks if they need more. |
+| "As of my last update" / "Based on available information" / "As an AI language model" | Check the source and state what it says, or cut the claim |
+| "While specific details are limited" | Say which detail is missing, or leave the gap out |
+
+`tools/analyze.py` flags `Chatbot sign-off` only in the last paragraph, because "Let me know if you need the logs" can be an ordinary request mid-email. It flags `Cutoff disclaimer` anywhere.
 
 ## Technical-Register Slop
 
@@ -224,7 +272,7 @@ Adverbs that assert the writer checked something. They carry no information abou
 | cleanly | 235 | Aesthetic claim posing as a test result |
 | genuinely | 178 | Doubles down on a claim already made |
 | precisely | 38 | Same as "exactly" |
-| properly / strictly / explicitly | — | Same family |
+| properly / strictly / explicitly | n/a | Same family |
 
 **Fix:** delete the adverb. If the sentence weakens, the missing information was never in the adverb.
 
@@ -374,6 +422,19 @@ Words that appear far more often in AI-generated text than human-written text. F
 
 **Rule:** If your text uses more than 2 words from this list in a single paragraph, rewrite. Each one alone is a mild signal; clustered, they scream "AI."
 
+`tools/analyze.py` flags three different words from these tables or its tier-2 list (`AI_TIER2_WORDS`) in one paragraph as `Buzzword cluster`. A word repeated counts once, so "the key ... each key" is not a cluster.
+
+### Practitioner-Reported Buzzwords
+
+No frequency ratio exists for these yet. A 2026 practitioner checklist ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), signs 2 and 10) names them next to "delve" and "landscape". Each has a literal use ("unlock the mutex", "customer journey"), so the analyzer keeps them in tier 2 and flags them only next to another signal or in a cluster.
+
+| Word | Use instead |
+|------|-------------|
+| unlock (value, potential) | Say what becomes possible |
+| elevate | Improve, raise |
+| journey (as a metaphor) | The steps or events themselves |
+| game-changer | See Business Jargon above. Say what changed |
+
 ### Academic Slop Phrases
 
 Tortured phrases and hedging language that spike in AI-generated academic text:
@@ -396,7 +457,7 @@ Tortured phrases and hedging language that spike in AI-generated academic text:
 
 These are hallmarks of academic AI slop. In non-academic writing, they read as pompous filler. In academic writing, they signal the author let AI do the thinking.
 
-### Kobak "Common 10" — Aggregate LLM Frequency Markers
+### Kobak "Common 10": Aggregate LLM Frequency Markers
 
 Ten words whose combined frequency strongly predicts LLM-assisted text (Kobak et al. 2025, *Science Advances* Vol.11 No.27, Δcommon=0.134). Individually common in technical writing; clustered, they signal AI.
 
@@ -440,7 +501,7 @@ Sources: [claude-code#53454](https://github.com/anthropics/claude-code/issues/53
 
 ### Importance Inflation: "decisive"
 
-LLM prose upgrades ordinary facts into turning points. Wikipedia's *Signs of AI writing* names the move — "a crucial/pivotal/vital role/moment", "key turning point", "marks a shift" — and `decisive` performs the same upgrade for causation and outcomes.
+LLM prose upgrades ordinary facts into turning points. Wikipedia's *Signs of AI writing* names the move: "a crucial/pivotal/vital role/moment", "key turning point", "marks a shift". The adjective `decisive` performs the same upgrade for causation and outcomes.
 
 `decisive` is absent from the Kobak et al. excess-vocabulary list, and no published AI/human frequency ratio exists for it. It also has an ordinary register in military, sports, election and character writing. So it is not treated as a density word: `tools/analyze.py` matches the collocations, not the adjective.
 

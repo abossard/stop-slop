@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-17
+
+### Added
+- `tools/analyze.py` flags unsourced attributions ("studies show", "many experts agree", "it is widely believed") and trends with no number ("has significantly increased", "in recent years"). A determiner or possessive before the noun, a citation in the sentence, or a digit exempts the sentence. `references/phrases.md` lists the patterns under Unsourced Claims.
+- `tools/analyze.py` flags recap openers ("In summary,", "To sum up,", "In short,") and preview frames that promise factors without naming them ("there are several key factors to consider"). `references/structures.md` describes both under Recap Frames.
+- `tools/analyze.py` flags a paragraph with two or more paragraph hedges ("That said,", "Of course,", "It's important to remember"). Blank lines separate paragraphs. `references/structures.md` describes them under Paragraph Hedges.
+- `tools/analyze.py` flags three different words from its AI vocabulary lists in one paragraph as `Buzzword cluster`, the rule `references/phrases.md` already gave. Tier 2 adds "unlock", "elevate", "journey" and "game-changer", flagged only next to another signal or in a cluster.
+- `tools/analyze.py` flags inflated verbs ("unveiled", "forged a partnership", "delivered a keynote", "drew 100 votes", "serves as a") and suggests the plain one. `references/phrases.md` lists them under Inflated Verbs. Only "serves as" has a written source. The others come from one anecdote, and the section says so.
+- `tools/analyze.py` reports `coordination_lengths`: pairs, triads and longer series, from spaCy's coordination parse. It has no threshold and adds no finding, because three is the shortest series and triads lead in ordinary prose too.
+- `references/structures.md` describes pet words, a metaphor or connector reused across a whole text, and adds paragraphs of even length to Rhythm Patterns. Neither has an analyzer check, because a counter cannot tell a pet word from a topic term.
+- `tools/analyze.py` reports `english_stopword_share` and sets `language_warning` when a text of 30 words or more has under 10% English function words. German prose scores 3 to 4%, English 13% and up, with a median of 51% over 88 markdown files. Before, a German paragraph full of AI phrases came back with no findings. Issue #3, item 4.
+- `tools/analyze.py` flags chatbot sign-offs ("I hope this helps", "Would you like me to") in the last paragraph and knowledge-cutoff disclaimers ("As of my last update", "Based on available information") anywhere. `references/phrases.md` lists them under Chat Leftovers. Issue #3, item 6.
+- `tools/analyze.py` reports `spaced_dash_count` (en dashes and ` -- ` with a space on each side, standing in for em dashes) and `curly_quote_count`. Neither adds a finding, like `em_dash_count`. An unspaced en dash in a range stays out. Issue #3, item 6.
+
+### Changed
+- `SKILL.md` runs the slopometer on documents and on text the user asks to review, and skips chat replies, commit messages and code comments. Before, it asked for a run before every reply over about 100 words, at one tool call each. Issue #3, item 7d.
+- The analyzer skips text in double quotes, straight or curly, as it skips inline code. A quoted word is mentioned, not used, so `("load-bearing", "not merely")` no longer counts as writing "load-bearing". Single quotes stay, because ' and ’ are also apostrophes. Word count, sentence length and readability still count quoted words, because the reader reads them. Issue #3, item 3.
+- The plain-word swaps for "implement", "however" and "currently" appear only next to another issue in the same sentence, like tier-2 words. "Implement an interface" no longer gets "do". "Provide" stays flagged alone, because the real before/after pair 2 relies on it. Issue #3, item 5.
+- The `Hedge stacking` check covers the whole "Hedge words to watch" list in `references/structures.md`. It adds "it is possible that", "it is likely that", "to some extent" and "more or less", and a test keeps the two lists in sync.
+
+### Fixed
+- The skill's own instructions used em dashes while telling the agent to use none: `SKILL.md` (the `jq` line and the Wall of Shame table), `structures.md` and `phrases.md`. They now use colons, commas and periods. Four analyzer messages ("Negative parallelism", "Sycophantic opener", "Throat-clearing", "Importance inflation") drop theirs too. Specimens of the em-dash pattern keep it. Issue #3, item 7b.
+- `TestWrapper`'s python3-fallback case passes where uv lives in `/usr/bin`, as with the Arch package. Dropping uv's directory from PATH used to drop bash with it, and the wrapper exited 127. The test now links bash, dirname and python3 into a temp directory first. Issue #3, item 7c.
+- `tools/analyze.py` reads "it's" as "it is" and accepts curly apostrophes when it matches AI phrases and sentence starters. "It's worth noting", "It’s important to note" and "In today’s" went unflagged before.
+- `tools/analyze.py` flags the filler phrases that `references/phrases.md` tells writers to cut: "at its core", "at the end of the day", "when it comes to", "in a world where" and "the reality is". Each yields a `Filler phrase` issue. "At its core" and "at the end of the day" need a following comma, so their literal sense stays unflagged. A test checks every phrase on that list against the analyzer.
+
 ## 2026-10-19
 
 ### Fixed
