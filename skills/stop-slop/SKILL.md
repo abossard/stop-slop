@@ -42,7 +42,7 @@ Eliminate predictable AI writing patterns from prose.
 
 ## Quantitative check
 
-Before delivering prose longer than ~100 words, run the slopometer:
+Run the slopometer on documents and on any text the user asks you to review. Skip it for chat replies, commit messages and code comments. Each run costs a tool call, and the first one sets up about 450 MB of dependencies through uv.
 
 - Command: `../../tools/slopometer --json` (reads stdin). The path is relative to this file, like the reference links. The shell starts in the user's project, so resolve it first.
 - Parse with `jq`, never with `grep` or `sed`
