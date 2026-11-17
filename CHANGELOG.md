@@ -12,6 +12,7 @@
 - `references/structures.md` describes pet words, a metaphor or connector reused across a whole text, and adds paragraphs of even length to Rhythm Patterns. Neither has an analyzer check, because a counter cannot tell a pet word from a topic term.
 - `tools/analyze.py` reports `english_stopword_share` and sets `language_warning` when a text of 30 words or more has under 10% English function words. German prose scores 3 to 4%, English 13% and up, with a median of 51% over 88 markdown files. Before, a German paragraph full of AI phrases came back with no findings. Issue #3, item 4.
 - `tools/analyze.py` flags chatbot sign-offs ("I hope this helps", "Would you like me to") in the last paragraph and knowledge-cutoff disclaimers ("As of my last update", "Based on available information") anywhere. `references/phrases.md` lists them under Chat Leftovers. Issue #3, item 6.
+- `tools/analyze.py` reports `spaced_dash_count` (en dashes and ` -- ` with a space on each side, standing in for em dashes) and `curly_quote_count`. Neither adds a finding, like `em_dash_count`. An unspaced en dash in a range stays out. Issue #3, item 6.
 
 ### Changed
 - The analyzer skips text in double quotes, straight or curly, as it skips inline code. A quoted word is mentioned, not used, so `("load-bearing", "not merely")` no longer counts as writing "load-bearing". Single quotes stay, because ' and ’ are also apostrophes. Issue #3, item 3.

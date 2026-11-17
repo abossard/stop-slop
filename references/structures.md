@@ -127,6 +127,8 @@ Keep openers that identify a condition or cause. "What makes this hard is..." be
 | Questions answered immediately | Let questions breathe or cut them |
 | Every paragraph ends punchily | Vary endings |
 | Em-dashes | Remove. Use commas or periods. No em dashes at all. |
+| Spaced en dashes or ` -- ` used as em dashes | Same fix. `spaced_dash_count` reports them. An unspaced en dash in a range ("2020–2024") is fine. |
+| Curly quotes where the format uses straight ones | Use straight quotes. Weak alone, because editors curl quotes too. `curly_quote_count` reports them. |
 | Staccato fragmentation | Don't stack short punchy sentences |
 | Every paragraph the same length and shape | Let each paragraph's length follow its content |
 | "Not always. Not perfectly." | Hedging disguised as reassurance |

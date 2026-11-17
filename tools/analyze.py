@@ -516,6 +516,12 @@ CUTOFF_DISCLAIMER_RE = re.compile(
 )
 
 EM_DASH = "\u2014"
+# An en dash or a double hyphen with a space on each side stands in for an
+# em dash. An unspaced en dash marks a range ("2020\u20132024") and stays out.
+SPACED_DASH_RE = re.compile(r"\s(?:\u2013|--)\s")
+# Curly quotes and apostrophes. Weak alone, because editors curl them too
+# (blader/humanizer, pattern 21), so they are counted, not flagged.
+CURLY_QUOTES = "\u201c\u201d\u2018\u2019"
 
 # Minimum POS tokens before syntactic-template rates are stable enough to
 # report. Matches the conservative floors used for hapax/Yule's K/MTLD.
@@ -1569,6 +1575,8 @@ def analyze_text(text: str) -> dict:
             "tier2_density": 0,
             "kobak_common10_density": 0,
             "em_dash_count": 0,
+            "spaced_dash_count": 0,
+            "curly_quote_count": 0,
             "syntactic_templates": None,
             "syntactic_templates_unavailable_reason": None,
             "mtld": None,
@@ -1637,6 +1645,9 @@ def analyze_text(text: str) -> dict:
             words, KOBAK_COMMON_10, spacy_lemmas
         ),
         "em_dash_count": prose_text.count(EM_DASH),
+        "spaced_dash_count": len(SPACED_DASH_RE.findall(prose_text)),
+        # Counted on the sentences as written, because quoted spans are masked
+        "curly_quote_count": sum(sum(s.count(q) for q in CURLY_QUOTES) for s in shown),
         "syntactic_templates": _compute_syntactic_templates(pos_tags),
         "syntactic_templates_unavailable_reason": None,
         "sentence_length_mean": round(statistics.mean(sentence_lengths), 2) if sentence_lengths else 0,
@@ -1745,6 +1756,12 @@ def _format_human(result: dict) -> str:
     em = result.get("em_dash_count", 0)
     em_note = " (house style: remove)" if em else ""
     lines.append(f"Em dashes:           {em}{em_note}")
+    spaced = result.get("spaced_dash_count", 0)
+    spaced_note = " (house style: remove)" if spaced else ""
+    lines.append(f"Spaced dashes:       {spaced}{spaced_note}")
+    curly = result.get("curly_quote_count", 0)
+    if curly:
+        lines.append(f"Curly quotes:        {curly} (weak alone: editors curl quotes too)")
 
     templates = result.get("syntactic_templates")
     if templates is not None:

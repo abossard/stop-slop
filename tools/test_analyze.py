@@ -1623,6 +1623,26 @@ class TestEmDash:
         result = analyze_module.analyze_text("The build broke at noon.")
         assert result["em_dash_count"] == 0
 
+    @pytest.mark.parametrize("text,count", [
+        ("The build broke – twice – before lunch.", 2),
+        ("The build broke -- twice -- before lunch.", 2),
+        ("The 2020–2024 builds ran with --json and `a -- b` flags.", 0),
+    ])
+    def test_spaced_dash_counted(self, analyze_module, text, count):
+        """Issue #3 item 6: en dashes and -- standing in for em dashes."""
+        assert analyze_module.analyze_text(text)["spaced_dash_count"] == count
+
+    def test_curly_quotes_counted_without_finding(self, analyze_module):
+        result = analyze_module.analyze_text("He said “it’s on track” at noon.")
+        assert result["curly_quote_count"] == 3
+        assert _issues_of(result) == []
+
+    def test_human_output_prints_dash_and_quote_counts(self, analyze_module):
+        text = "He said “yes” – twice."
+        output = analyze_module._format_human(analyze_module.analyze_text(text))
+        assert "Spaced dashes:       1 (house style: remove)" in output
+        assert "Curly quotes:        2" in output
+
 
 class TestSyntacticTemplates:
     """C8/C9 — POS n-gram templates (Shaib et al. arXiv:2407.00211)."""
