@@ -20,7 +20,7 @@ Eliminate predictable AI writing patterns from prose.
 
 5. **Name what happens.** When "People" hides who acts, name the actor and action. Use "you" when the reader acts.
 
-6. **Short sentences, varied rhythm.** Average 15 to 20 words. Uniform lengths are an AI tell. End paragraphs differently. No em dashes.
+6. **Short sentences, varied rhythm.** Average 15 to 20 words. Uniform lengths are an AI tell, for paragraphs too. End paragraphs differently. No em dashes.
 
 7. **State the fact.** If a clause only reassures or justifies including a claim, cut it. Keep explanations of cause or behavior.
 
@@ -62,6 +62,7 @@ Before delivering prose:
 - Three consecutive sentences match length? Break one.
 - Two hedges in one paragraph ("That said," "Of course," "It's important to remember")? Keep one at most.
 - Paragraph ends with punchy one-liner? Vary it.
+- Same metaphor or connecting word in three paragraphs? Use it once. See [Pet Words](../../references/structures.md#pet-words).
 - Em-dash anywhere? Remove it.
 - Vague declarative ("The implications are significant")? Name the specific implication.
 - "Studies show," "experts agree," "in recent years"? Name the source and the number, or cut the claim.

@@ -128,6 +128,7 @@ Keep openers that identify a condition or cause. "What makes this hard is..." be
 | Every paragraph ends punchily | Vary endings |
 | Em-dashes | Remove. Use commas or periods. No em dashes at all. |
 | Staccato fragmentation | Don't stack short punchy sentences |
+| Every paragraph the same length and shape | Let each paragraph's length follow its content |
 | "Not always. Not perfectly." | Hedging disguised as reassurance |
 
 ## Word Patterns
@@ -251,6 +252,17 @@ Restatement at the scale of a whole text. The opening restates the question, the
 Overview first still holds. An overview names what follows ("Setup has three steps: install, configure, verify."), and a preview frame only promises it.
 
 `tools/analyze.py` flags `Recap opener` and `Preview frame`. A closing paragraph that restates the body without these phrases still needs a reader to catch it.
+
+## Pet Words
+
+A word or metaphor that does connective work across a whole text: "seam" in the first paragraph, again in the fourth, again in the conclusion. Matt Pocock named the habit "seamslop" after a model kept reaching for "seam" ([explainx.ai](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), sign 2). Topic terms recur because they name the subject. A pet word recurs because the writer reached for it again.
+
+| Pattern | Fix |
+|---------|-----|
+| Same metaphor in three or more paragraphs ("seam," "journey," "landscape") | Use it once, then name the thing it stands for |
+| Same connector opening most transitions | Let the content connect the sentences, or vary the transition |
+
+To check, skim only the verbs and connecting phrases. `tools/analyze.py` catches the metaphorical "seam" as a signature marker and measures overall repetition with TTR, MTLD and Yule's K. To a word counter, a pet word looks like a topic term, so the rest needs a reader.
 
 ## Em-Dash Bold Clause
 

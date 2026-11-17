@@ -24,7 +24,7 @@ These sources back the analyzer signals and the clarity and visual rules. Strong
 | Wikipedia, Signs of AI writing | "Serves as", "stands as" and "boasts" in place of "is" and "has" | [Avoidance of basic copulatives](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing#Avoidance_of_basic_copulatives_%28%22is%22/%22are%22_phrases%29) |
 | Paul Graham, reported by explainx.ai (2026) | Dramatic verbs: "drew" for "got", "unveiled" for "showed". Anecdotal, second-hand | [Top 10 Signs of AI-Generated Text](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), bonus sign |
 | Wikipedia Manual of Style, Words to watch | Editorializing: "it should be noted", "of course", "arguably" | [Editorializing](https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Words_to_watch#Editorializing) |
-| Thakker, explainx.ai (2026) | Practitioner checklist: hedges spread across a paragraph, an opening that restates the question and a closing that restates the answer, buzzword clusters with "unlock", "elevate", "journey" and "game-changer" | [Top 10 Signs of AI-Generated Text](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), signs 2, 5, 8 and 10 |
+| Thakker, explainx.ai (2026) | Practitioner checklist: hedges spread across a paragraph, an opening that restates the question and a closing that restates the answer, buzzword clusters with "unlock", "elevate", "journey" and "game-changer", pet words reused across paragraphs ("seamslop"), paragraphs of even length | [Top 10 Signs of AI-Generated Text](https://www.explainx.ai/blog/top-10-signs-ai-generated-text-2026), signs 2, 5, 6, 8 and 10 |
 
 Key findings:
 - **Top 4 discriminating features** (Opara 2024): UniqueWordCount, StopWordCount, TTR, HapaxLegomenonRate
