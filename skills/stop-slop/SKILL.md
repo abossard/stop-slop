@@ -66,6 +66,7 @@ Before delivering prose:
 - "Studies show," "experts agree," "in recent years"? Name the source and the number, or cut the claim.
 - Distant summary ("Nobody designed this")? Name who did what; keep factual causes.
 - Meta-joiners ("The rest of this essay...")? Delete. Let the essay move.
+- Opening restates the question, or the last paragraph starts "In summary"? Start with the answer and end on the last new fact. See [Recap Frames](../../references/structures.md#recap-frames).
 - Sentence ends in ", not merely X" or ", not just Y"? Review with [Negation-as-Proof](../../references/structures.md#negation-as-proof).
 - "Load-bearing," "decisive," "the crux," "not optional"? Name the consequence; preserve actual requirements.
 - "Deliberately," "intentionally," "by design"? Every choice was. State the mechanism.

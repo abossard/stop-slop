@@ -1256,6 +1256,37 @@ class TestVagueClaims:
         )
 
 
+class TestRecapFrames:
+    """Closing recaps and opening previews that restate instead of adding."""
+
+    @pytest.mark.parametrize("sentence,label", [
+        ("In summary, remote work is shaped by these factors.", "Recap opener"),
+        ("To sum up: the cache wins.", "Recap opener"),
+        ("- In short, the proxy wins.", "Recap opener"),
+        ("When it comes to remote work, there are several key factors to consider.",
+         "Preview frame"),
+        ("There are many things to keep in mind before you deploy.", "Preview frame"),
+    ])
+    def test_frames_flagged(self, analyze_module, sentence, label):
+        result = analyze_module.analyze_text(sentence)
+        assert any(i.startswith(label) for i in _issues_of(result)), (
+            f"not flagged: {sentence!r}"
+        )
+
+    @pytest.mark.parametrize("sentence", [
+        "Overall, latency fell 30% after the change.",
+        "In short order the queue drained.",
+        "There are three ways to install the tool.",
+        "There are several ways to install the tool.",
+        "The summary lists the steps in short form.",
+    ])
+    def test_ordinary_use_not_flagged(self, analyze_module, sentence):
+        result = analyze_module.analyze_text(sentence)
+        assert not any(
+            i.startswith(("Recap opener", "Preview frame")) for i in _issues_of(result)
+        ), f"false positive on: {sentence!r}"
+
+
 class TestDecisiveness:
     """C11 — "decisive" importance-inflation frames, without flagging the
     ordinary military, sports and character senses of the adjective."""

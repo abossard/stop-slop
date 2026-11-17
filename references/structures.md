@@ -228,6 +228,20 @@ All three carry one instruction: **"Mutate the tree and rerun the guard. It has 
 
 **Instead:** Keep the claim and any distinct constraints or exceptions; cut repeated paraphrases and importance labels. For a negation tail, use [Negation-as-Proof](#negation-as-proof).
 
+## Recap Frames
+
+Restatement at the scale of a whole text. The opening restates the question, the body answers it, and the closing restates the answer. The reader gets each point three times: promised, made and summarized.
+
+| Pattern | Fix |
+|---------|-----|
+| "When it comes to X, there are several key factors to consider." | Start with the first factor |
+| "In summary," / "To sum up," / "In short," opening the last paragraph | End on the last new fact or the next action |
+| A last paragraph that repeats the body in other words | Cut it |
+
+Overview first still holds. An overview names what follows ("Setup has three steps: install, configure, verify."), and a preview frame only promises it.
+
+`tools/analyze.py` flags `Recap opener` and `Preview frame`. A closing paragraph that restates the body without these phrases still needs a reader to catch it.
+
 ## Em-Dash Bold Clause
 
 The highest-volume tell in technical output: 13,262 sentences, 15.2% of the audited chat corpus. Bold a noun phrase, em-dash, then gloss it.

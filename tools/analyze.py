@@ -386,6 +386,25 @@ UNQUANTIFIED_TREND_RES = [
     ),
 ]
 
+# Frames that restate instead of adding: a closing recap opener ("In
+# summary,") and an opening preview that promises factors without naming
+# them ("there are several key factors to consider"). "In conclusion," stays
+# with AI_SENTENCE_STARTERS so one phrase yields one issue. "Overall," and
+# "Ultimately," also mark an aggregate or a last step ("Overall, latency fell
+# 30%"), so they are left out. Both match a _phrase_form.
+RECAP_OPENER_RE = re.compile(
+    r"^(?:in\s+summary|to\s+summari[sz]e|to\s+sum\s+up|in\s+short|all\s+in\s+all|"
+    r"in\s+a\s+nutshell|in\s+essence|to\s+recap|summing\s+up)\s*[,:]"
+)
+PREVIEW_FRAME_RE = re.compile(
+    r"\bthere\s+are\s+(?:several|many|a\s+few|a\s+number\s+of|various|numerous|"
+    r"multiple|some)\s+(?:(?:key|important|crucial|main|major|critical)\s+)?"
+    r"(?:factors|things|considerations|aspects|points|elements|reasons|ways|"
+    r"issues|challenges)\s+(?:to\s+(?:consider|keep\s+in\s+mind|be\s+aware\s+of|"
+    r"bear\s+in\s+mind|think\s+about|note)|worth\s+(?:considering|noting|"
+    r"mentioning)|at\s+play|that\s+come\s+into\s+play)\b"
+)
+
 EM_DASH = "\u2014"
 
 # Minimum POS tokens before syntactic-template rates are stable enough to
@@ -1224,6 +1243,16 @@ def _generate_findings(
 
         # Claims with no named source, trends with no number
         issues.extend(_vague_claim_issues(phrase_form, shown[idx]))
+
+        # Recap openers and preview frames restate instead of adding
+        found = RECAP_OPENER_RE.match(MARKDOWN_PREFIX_RE.sub("", phrase_start))
+        if found:
+            hit = found.group(0).rstrip(",:").strip()
+            issues.append(f'Recap opener: "{hit}": end on the last new fact instead')
+        found = PREVIEW_FRAME_RE.search(phrase_form)
+        if found:
+            hit = " ".join(found.group(0).split())
+            issues.append(f'Preview frame: "{hit}": start with the first item')
 
         # Tier-2 words are too common to flag alone; only when clustered
         # with another signal in the same sentence.

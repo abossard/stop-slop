@@ -4,6 +4,7 @@
 
 ### Added
 - `tools/analyze.py` flags unsourced attributions ("studies show", "many experts agree", "it is widely believed") and trends with no number ("has significantly increased", "in recent years"). A determiner or possessive before the noun, a citation in the sentence, or a digit exempts the sentence. `references/phrases.md` lists the patterns under Unsourced Claims.
+- `tools/analyze.py` flags recap openers ("In summary,", "To sum up,", "In short,") and preview frames that promise factors without naming them ("there are several key factors to consider"). `references/structures.md` describes both under Recap Frames.
 
 ### Fixed
 - `tools/analyze.py` reads "it's" as "it is" and accepts curly apostrophes when it matches AI phrases and sentence starters. "It's worth noting", "It’s important to note" and "In today’s" went unflagged before.
