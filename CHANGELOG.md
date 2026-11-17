@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-17
+
+### Fixed
+- `tools/analyze.py` reads "it's" as "it is" and accepts curly apostrophes when it matches AI phrases and sentence starters. "It's worth noting", "It’s important to note" and "In today’s" went unflagged before.
+- `tools/analyze.py` flags the filler phrases that `references/phrases.md` tells writers to cut: "at its core", "at the end of the day", "when it comes to", "in a world where" and "the reality is". Each yields a `Filler phrase` issue. "At its core" and "at the end of the day" need a following comma, so their literal sense stays unflagged. A test checks every phrase on that list against the analyzer.
+
 ## 2026-10-19
 
 ### Fixed
