@@ -642,12 +642,18 @@ BARE_URL_RE = re.compile(r"https?://[^\s<>]*[^\s<>.,;:!?)\]]")
 # mentioned, not used: `("load-bearing", "not merely")` must not count as
 # writing "load-bearing". Single quotes stay, because ' and ’ are also
 # apostrophes. The length cap keeps an unmatched quote from blanking a line.
+# The reader still reads a quoted word, so length metrics keep it.
 QUOTED_RE = re.compile(r'"[^"\n]{1,200}"|“[^”\n]{1,200}”')
 
 
-def _mask_non_prose(text: str) -> str:
-    """Blank inline code, link targets, bare URLs and quoted text, keeping every offset."""
-    for pattern in (INLINE_CODE_RE, LINK_TARGET_RE, BARE_URL_RE, QUOTED_RE):
+def _mask_non_prose(text: str, quotes: bool = True) -> str:
+    """Blank inline code, link targets, bare URLs and quoted text, keeping every offset.
+
+    With quotes=False, quoted text stays, for metrics that measure what the
+    reader reads.
+    """
+    patterns = (INLINE_CODE_RE, LINK_TARGET_RE, BARE_URL_RE) + ((QUOTED_RE,) if quotes else ())
+    for pattern in patterns:
         text = pattern.sub(lambda match: " " * len(match.group(0)), text)
     return text
 
@@ -1359,11 +1365,13 @@ def _generate_findings(
     sentences: list[str], shown: list[str], spacy_lemmas: dict,
     passive_data: list[bool], sentence_tokens: list[list],
     paragraph_ids: list[int] | None = None,
+    sentence_lengths: list[int] | None = None,
 ) -> list[dict]:
     """Per-sentence findings with sentence indices and issues.
 
     paragraph_ids numbers each sentence's paragraph. Without it, the whole
-    text counts as one paragraph.
+    text counts as one paragraph. sentence_lengths gives each sentence's
+    word count with quoted text kept. Without it, lengths come from sentences.
     """
     findings = []
     if paragraph_ids is None:
@@ -1380,8 +1388,9 @@ def _generate_findings(
         sent_words = _word_tokenize(sent)
         tokens = sentence_tokens[idx]
 
-        if len(sent_words) > LONG_SENTENCE_WORDS:
-            issues.append(f"Long sentence ({len(sent_words)} words)")
+        length = sentence_lengths[idx] if sentence_lengths else len(sent_words)
+        if length > LONG_SENTENCE_WORDS:
+            issues.append(f"Long sentence ({length} words)")
 
         deferred_plain = []
         for found, plain, key in _plain_swap_hits(sent, tokens):
@@ -1595,14 +1604,20 @@ def analyze_text(text: str) -> dict:
             "findings": [],
         }
 
-    # Inline code, link targets and URLs become spaces, so offsets still line up.
+    # Inline code, link targets, URLs and quoted text become spaces, so offsets still line up.
     masked = _mask_non_prose(text)
     sentence_spans = _split_sentence_spans(text, masked)
     sentences = [masked[span["start"]:span["end"]].strip() for span in sentence_spans]
     shown = [text[span["start"]:span["end"]] for span in sentence_spans]
     prose_text = "\n".join(sentences)
     words = _word_tokenize(prose_text)
-    sentence_lengths = [len(_word_tokenize(s)) for s in sentences]
+    # A quoted word is a mention for the detectors, but the reader still reads
+    # it, so word count, sentence length and readability keep quoted text.
+    as_read = _mask_non_prose(text, quotes=False)
+    read_sentences = [as_read[span["start"]:span["end"]].strip() for span in sentence_spans]
+    read_text = "\n".join(read_sentences)
+    read_word_count = len(_word_tokenize(read_text))
+    sentence_lengths = [len(_word_tokenize(s)) for s in read_sentences]
 
     spacy_data = _spacy_analyze(masked)
     spacy_lemmas = spacy_data["lemmas"]
@@ -1621,21 +1636,21 @@ def analyze_text(text: str) -> dict:
     ]
     findings = _generate_findings(
         sentences, shown, spacy_lemmas, passive_data, sentence_tokens,
-        _paragraph_ids(text, sentence_spans),
+        _paragraph_ids(text, sentence_spans), sentence_lengths,
     )
-    textstat_metrics = _compute_textstat_metrics(prose_text, sentence_tokens)
-    visual_findings, bold_density = _detect_visuals(raw_text, len(words))
+    textstat_metrics = _compute_textstat_metrics(read_text, sentence_tokens)
+    visual_findings, bold_density = _detect_visuals(raw_text, read_word_count)
     coordinations = [n for tokens in sentence_tokens for n in _coordination_lengths(tokens)]
     english_share, language_warning = _language_check(words)
 
     result = {
-        "word_count": len(words),
+        "word_count": read_word_count,
         "sentence_count": len(sentences),
         "burstiness": _compute_burstiness(sentence_lengths),
         "ttr": _compute_ttr(words),
         "ai_vocabulary_density": _compute_ai_vocab_density(words, spacy_lemmas),
         "passive_voice_rate": _compute_passive_voice_rate(sentences, passive_data),
-        "flesch_kincaid_grade": _compute_readability(prose_text),
+        "flesch_kincaid_grade": _compute_readability(read_text),
         "hapax_ratio": _compute_hapax_ratio(words),
         "yules_k": _compute_yules_k(words),
         "contraction_rate": _compute_contraction_rate(prose_text, sentences),

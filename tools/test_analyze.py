@@ -452,8 +452,19 @@ class TestNonProseMasking:
         result = analyze_module.analyze_text('The "pool" utilizes memory.')
         assert 'Plain word: "utilizes" -> "use"' in _issues_of(result)
 
-    def test_quoted_text_leaves_word_count(self, analyze_module):
-        assert analyze_module.analyze_text('Say "hello world" twice.')["word_count"] == 2
+    def test_quoted_text_counts_toward_word_count(self, analyze_module):
+        """The reader still reads a quoted word, so it counts toward length."""
+        assert analyze_module.analyze_text('Say "hello world" twice.')["word_count"] == 4
+
+    def test_quoted_text_counts_toward_sentence_length(self, analyze_module):
+        text = (
+            'The team should write and validate the page called "Data and '
+            'Confidentiality Rules for Every Approved AI Tool" before the '
+            "planning review at the start of the next quarter."
+        )
+        result = analyze_module.analyze_text(text)
+        assert result["long_sentence_count"] == 1
+        assert "Long sentence (29 words)" in _issues_of(result)
 
 
 class TestNominalizations:

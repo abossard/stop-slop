@@ -16,7 +16,7 @@
 
 ### Changed
 - `SKILL.md` runs the slopometer on documents and on text the user asks to review, and skips chat replies, commit messages and code comments. Before, it asked for a run before every reply over about 100 words, at one tool call each. Issue #3, item 7d.
-- The analyzer skips text in double quotes, straight or curly, as it skips inline code. A quoted word is mentioned, not used, so `("load-bearing", "not merely")` no longer counts as writing "load-bearing". Single quotes stay, because ' and ’ are also apostrophes. Issue #3, item 3.
+- The analyzer skips text in double quotes, straight or curly, as it skips inline code. A quoted word is mentioned, not used, so `("load-bearing", "not merely")` no longer counts as writing "load-bearing". Single quotes stay, because ' and ’ are also apostrophes. Word count, sentence length and readability still count quoted words, because the reader reads them. Issue #3, item 3.
 - The plain-word swaps for "implement", "however" and "currently" appear only next to another issue in the same sentence, like tier-2 words. "Implement an interface" no longer gets "do". "Provide" stays flagged alone, because the real before/after pair 2 relies on it. Issue #3, item 5.
 - The `Hedge stacking` check covers the whole "Hedge words to watch" list in `references/structures.md`. It adds "it is possible that", "it is likely that", "to some extent" and "more or less", and a test keeps the two lists in sync.
 
