@@ -1,5 +1,9 @@
 # Stop Slop
 
+A skill that makes an agent write text that a person can read at normal speed.
+
+Frontier models write English that is correct and slow to read. They coin phrases, give things human verbs, stack nouns, drop "that", use nouns as verbs, and put a subject far from its verb. One 2026 study measured this across 14 models: Clark, Martin & Mahowald, [arXiv:2610.29162](https://arxiv.org/abs/2610.29162). The skill tells the agent to choose the few points that the reader needs and then to write each one out in full.
+
 ## How to use it
 
 ### GitHub Copilot CLI
@@ -8,7 +12,7 @@
 copilot plugin install abossard/stop-slop
 ```
 
-Then ask: `/stop-slop Review README.md. Keep the facts; cut filler and repetition.`
+Then ask: `/stop-slop Rewrite README.md so that it reads more easily. Keep the facts.`
 
 ### Claude Code
 
@@ -17,76 +21,36 @@ claude plugin marketplace add abossard/stop-slop
 claude plugin install stop-slop@stop-slop
 ```
 
-Then ask: `/stop-slop:stop-slop Review README.md. Keep the facts; cut filler and repetition.`
+Then ask: `/stop-slop:stop-slop Rewrite README.md so that it reads more easily. Keep the facts.`
 
-For other agents, load [the skill](skills/stop-slop/SKILL.md) and keep its linked references accessible.
-Agents load it before they write text for a person, such as a PR description, comment, email, doc or explanation, and when you ask for a review.
+For other agents, load [the skill](skills/stop-slop/SKILL.md) and keep its linked references accessible. Agents load it before they write text for a person.
 
-## Why use it
+## What is in it
 
-Use it when a reader has to work through filler to find the action, constraint, or reason.
-Readers judge slop mostly by missing or irrelevant information, not by word choice, so the skill starts before the first sentence.
-The author takes the requested size literally, notes what the reader needs, picks the shape for the channel and sets a ceiling.
-While drafting, the author names who acts, states consequences, claims only what was checked and keeps each fact once.
-Phrase lists and the analyzer check the draft afterwards.
+- [The skill](skills/stop-slop/SKILL.md): the steps before and after writing, and the six constructions.
+- [Constructions](references/constructions.md): each construction with examples from the study, a rewrite and the reading studies behind it.
+- [Examples](references/examples.md): 28 texts from slop to no slop, from one sentence to a whole README. Each slop text is an original, word for word.
+- [Research](references/research.md): what the study found, what it did not show, and where this repository departs from its method.
 
-Technical explanations should preserve why a choice exists. Link to code for recoverable details; keep necessary contracts and exceptions.
-Tables and diagrams should clarify comparisons or relationships. Decorative visuals and repeated explanations make the reader do more work.
-
-The skill reviews meaning and context. The analyzer flags sentences to inspect; its scores do not establish authorship or factual correctness.
-
-## References
-
-- [Writing rules](skills/stop-slop/SKILL.md): drafting, checking and review.
-- [Review](references/review.md): checklist, Wall of Shame and scores for review reports.
-- [Phrases](references/phrases.md): filler, vague claims, and plain-word swaps.
-- [Structures](references/structures.md): repeated framing, hedges, and needed distinctions.
-- [Visuals](references/visuals.md): choosing tables, diagrams, and prose.
-- [Contrast research](references/contrastive-framing-research.md): legitimate contrasts versus redundant framing.
-- [More examples](references/examples.md#real-beforeafter): edits from public repositories.
-
-### Evidence
-
-[Sources and evidence levels](references/evidence.md) distinguish research findings, practitioner guidance, and unverified rules.
-The documentation rule follows [Ousterhout](https://web.stanford.edu/~ouster/cgi-bin/cs190-spring16/lecture.php?topic=comments) and [Nygard](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions).
-
-## Details
-
-### Standalone prose check
+## Check a draft
 
 From this checkout, with [uv](https://docs.astral.sh/uv/) installed:
 
 ```bash
-tools/slopometer --file README.md --findings
+tools/readcheck --file README.md
 ```
 
-`--findings` prints at most 10 findings, one per line: `S3` is the third prose sentence, `L12` is source line 12 for a visual finding. `--json` prints every metric and finding: each entry in `findings[]` has `line` (the sentence number), `sentence` (an excerpt) and `issues[]`, and each entry in `visual_findings[]` has `line` (the source line), `kind` and `issue`.
-Requirement lines (EARS "shall" clauses, IDs such as `C1-5:`) get no findings, and headings get only word-choice findings.
+It prints one line per finding: the kind, the phrase, the fix and the sentence. `--json` adds the counts and the rates per 1,000 words. It also gives the average distance between words that belong together, corrected for sentence length.
 
-The wrapper handles Python dependencies through uv. Without uv, it uses Python with the [required packages](tools/requirements.txt) and spaCy's `en_core_web_sm` model.
-Missing dependencies stop the analyzer with exit code 3; it produces no report.
+The checker finds noun stacks, object relative clauses without "that", some human verbs on things, and subjects or objects that are far from their verb. It does not find coined phrases or nouns used as verbs. Its parser makes mistakes, so treat a finding as a question.
 
-Review findings and compare revisions of the same text. A lower score alone does not show that an edit improved the writing.
-Source-aware judgments, such as whether prose duplicates code or invents rationale, require review beyond the analyzer.
+Without uv, the wrapper uses Python with spaCy and the `en_core_web_sm` model. It exits with code 3 when dependencies are missing.
 
-### Evals
+## Does it work?
 
-[evals/](evals/README.md) runs the skill through GitHub Copilot CLI on 15 writing tasks taken from real corrections, grades the results and compares skill versions blind.
+Not shown. The study measured what models write. It did not test whether an instruction such as this skill reduces the constructions, and this repository has not tested that either. `tools/readcheck` counts the constructions in a text, so you can compare a text written with the skill and a text written without it.
 
-### Fork and license
+## Fork and license
 
 Fork of [Hardik Pandya's stop-slop](https://github.com/hvpandya/stop-slop), maintained here by abossard.
-This fork adds plugin packaging, a Python prose analyzer, research citations, and technical-writing and visual guidance.
 [MIT license](LICENSE).
-
-## Real examples
-
-These are verbatim edits from public commit history.
-
-| Edit | Before | After |
-|------|--------|-------|
-| Replace implementation history with the reader's action | The current pull request gives every child model one healthy dummy entity to confirm the deployment succeeded. The diagram labels that entity as a deployment check because it does not measure domain health. Replace it with the platform and system flows the domain provides. | Add monitoring signals to each child model before using its state to assess domain health. |
-| Lead with the task | Trigger: the coherent task or session boundary has been reached with no active criteria and no blocking issue, or the user explicitly requested extract. It turns raw outcomes into durable knowledge under `raw/`, `wiki/`, and `schema.md`. | Turn this task's raw outcomes into durable knowledge under `raw/`, `wiki/`, and `schema.md`. Terminal phase, runs at most once. |
-
-Sources: [Azure health-model documentation edit](https://github.com/Azure/azure-monitor-baseline-alerts/commit/23d41f17)
-and [minime extract edit](https://github.com/abossard/virtucon/commit/725532b5).

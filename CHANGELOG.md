@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-24
+
+### Changed
+- `SKILL.md` is rewritten around one study: Clark, Martin & Mahowald 2026, [arXiv:2610.29162](https://arxiv.org/abs/2610.29162). The author chooses the few points that the reader needs and writes each one in full. Six constructions get written out: coined phrases, human verbs on things, noun stacks, clauses without "that", nouns used as verbs, and subjects far from their verbs. The earlier rules on size, channel shapes and AI tells are gone from the skill.
+- The README and the plugin descriptions describe the rewritten skill.
+- The plugin version is 2.0.0-abossard.
+
+### Added
+- `references/constructions.md` gives each construction with examples quoted from the study, a rewrite and the reading studies behind it.
+- `references/examples.md` keeps every slop text of the earlier file, word for word, and gives each one a new rewrite that follows the skill. It adds seven whole inputs of the removed evals, also word for word, with the text that the skill writes for each.
+- `references/research.md` says what the study found, what it did not show, and where `readcheck` departs from its method.
+- `tools/readcheck` finds noun stacks, object relative clauses without "that", a fixed list of human verbs on things, and subjects or objects 10 or more words from their verb. `--json` adds counts, rates per 1,000 words and the standardized dependency length.
+
+### Removed
+- `tools/analyze.py`, `tools/slopometer` and `tools/test_analyze.py`. They looked for AI tells, and the study does not link those to reading difficulty.
+- The earlier references: `phrases.md`, `structures.md`, `visuals.md`, `review.md`, `evidence.md`, `contrastive-framing-research.md`, and the "after" texts and analyzer numbers of the earlier `examples.md`.
+- `evals/`: the harness, its cases and its judge. Its checks tested length and format, and its judge's verdict changed with the reader that it stood in for.
+
+### Not done
+- Nobody has measured whether the skill reduces the constructions.
+
 ## 2026-10-24
 
 ### Changed

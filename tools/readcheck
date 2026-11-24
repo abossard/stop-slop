@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# readcheck — runs tools/readcheck.py preferring `uv run` (PEP 723 inline deps),
+# falling back to `python3 tools/readcheck.py` if `uv` is missing.
+#
+# Stderr always reports `runner=<uv|python3>` so callers can verify the path.
+# Exits 127 when neither runner exists; the checker exits 3 when dependencies are missing.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT="$HERE/readcheck.py"
+
+if command -v uv >/dev/null 2>&1; then
+  echo "runner=uv" >&2
+  exec uv run --quiet --script "$SCRIPT" "$@"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  echo "runner=python3" >&2
+  echo "hint: spaCy and en_core_web_sm are required; without them the checker prints a banner and exits 3. Install \`uv\` (https://docs.astral.sh/uv/) for zero-setup runs, or run \`pip install -r $HERE/requirements.txt && python -m spacy download en_core_web_sm\`." >&2
+  exec python3 "$SCRIPT" "$@"
+fi
+
+echo "readcheck: neither \`uv\` nor \`python3\` found on PATH" >&2
+echo "hint: install uv via \`brew install uv\` or see https://docs.astral.sh/uv/" >&2
+exit 127

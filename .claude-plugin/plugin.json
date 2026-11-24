@@ -1,7 +1,7 @@
 {
   "name": "stop-slop",
-  "description": "Prevent and remove AI writing patterns in prose: size text to what the reader needs, then catch filler, invented claims and AI tells.",
-  "version": "1.1.1-abossard",
+  "description": "Write text that a person can read at normal speed: no noun stacks, dropped \"that\", human verbs on things, nouns used as verbs, coined phrases or far-apart subjects and verbs.",
+  "version": "2.0.0-abossard",
   "author": {
     "name": "Hardik Pandya (forked by abossard)",
     "url": "https://hvpandya.com"

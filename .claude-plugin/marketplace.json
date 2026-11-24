@@ -10,7 +10,7 @@
     {
       "name": "stop-slop",
       "source": "./",
-      "description": "Skill that sizes text to what the reader needs while drafting, then catches filler, invented claims, structural clichés and AI tells."
+      "description": "Skill that makes an agent write text a person can read at normal speed, by writing out six constructions that models over-use."
     }
   ]
 }
